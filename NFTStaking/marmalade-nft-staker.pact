@@ -1,26 +1,9 @@
 (namespace "free")
 
-;; XX% APY, EQ: (1 + r/n)^n - 1, r is the annual interest rate, 
-;; n is the compound intervals
-;; (1 + r) - 1 = 0.15
-;; To Calculate the total tokens made while staked we need:
-;; Total Time Staked (TTS, seconds) = Current Time - Time Staked
-;; APY = 0.15
-;; Value of the NFT in whatever token you desire
-;; Interest = TTS * APY * Value / 31536000 (SECONDS_IN_YEAR )
-;; Token Value is in the Policy
-
 (module marmalade-nft-staker GOV
   @doc "A contract that is used to stake marmalade NFTs. \
   \ Staking the NFT moves it into an escrow account using a pact. \
   \ Thus, the NFT policy must accept transferring the token, or this will fail."
-
-  ;  (defconst APY:decimal 15.0)
-  ;  (defconst COIN_POOL_GUARD:string "free.coin-pool-guard")
-  ;  (defconst ESCROW_ACCOUNT:string "staking-escrow")
-  ;  (defconst ESCROW_ACCOUNT_GUARD:string "free.staking-escrow-guard")
-  ;  (use coin) ; fungible-v2
-  ;  (use fungible-v2)
 
   (defcap GOV ()
     (enforce-guard (keyset-ref-guard GOV_KEYSET))
@@ -33,17 +16,8 @@
 
   (defconst SECONDS_IN_YEAR:integer 31536000)
 
-  ;  (defconst APY_KEY:string "APY_KEY"
-  ;    @doc "The key in the values table for the APY")
-  ;  (defconst TOKEN_VALUE_KEY:string "TOKEN_VALUE_KEY"
-  ;    @doc "The key in the values table for the token value")
-
   ;; -------------------------------
   ;; Schemas
-
-  ;  (defschema value ;; ID is a const key value
-  ;    @doc "Used to store decimal values, like APY"
-  ;    value:decimal)
 
   (defschema stakable-nft ;; ID is the pool-name
     pool-name:string
@@ -154,24 +128,6 @@
 
   ;; -------------------------------
   ;; Basic Staking Functions
-
-  ;  (defpact stake-unstake:string (account:string token-id:string amount:decimal)
-  ;    @doc "Moves the AMOUNT of TOKEN-ID into an escrow account. \
-  ;    \ APY begins accruing immediately."
-    
-  ;    (step 
-  ;      ; Ensure the we have created a stakable nft for this
-  ;      (read stakable-nfts (marmalade.ledger.key token-id account))
-  ;      (with-capability (STAKE account token-id amount (pact-id))
-  ;        (stake token-id amount)
-  ;      )
-  ;    )
-  ;    (step
-  ;      (with-capability (UNSTAKE account token-id amount (pact-id))
-  ;        (unstake token-id amount)
-  ;      )
-  ;    )
-  ;  )
 
   (defun stake:string 
     (
