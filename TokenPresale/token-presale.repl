@@ -1,0 +1,292 @@
+
+(load "dependencies/dependencies.repl")
+
+
+(begin-tx)
+
+(env-keys 
+  ["bank",
+    "gov", 
+    "ops"])
+(env-data 
+  { 
+    "token-bank-admin": { "keys": ["bank"], "pred": "keys-all"},
+    "token-sale-gov": { "keys": ["gov"], "pred": "keys-all"},
+    "token-sale-ops": { "keys": ["ops"], "pred": "keys-all"},
+    "upgrade": true
+  })
+
+(load "token-sale.pact")
+
+(commit-tx)
+
+(begin-tx)
+(use free.token-sale-manager)
+
+(env-keys ["ops", "person1"])
+(env-data 
+  { 
+    "person1-keyset": { "keys": ["person1"], "pred": "keys-all"}
+  })
+(env-sigs 
+  [
+    { 
+      'key: "ops", 
+      'caps:
+      [
+        (free.token-sale-manager.OPS)
+      ]
+    },
+    { 
+      'key: "person1", 
+      'caps:
+      [
+        (free.token-sale-manager.RESERVE "sale1" (free.token-sale-manager.curr-time) "on-chain")
+        (coin.TRANSFER "person1" "token-sale-bank" 10000.0)
+      ]
+    }
+  ]
+)
+
+;; Test Case 1
+; Create Private Sale
+; Attempt to reserve without whitelist, expect failure
+; whitelist
+; Attempt again, expect success
+; Get my reserved amount, expect correct amount
+; Attempt to reserve more than possible, expect failure
+; Attempt to reserve again, matching total possible, expect success
+; Get my reserved amount, expect correct amount
+; Reserve over token supply: expect failure
+; Approve reserve(s)
+; End sale
+; Attempt to reserve, expect failure
+
+; Create sale
+(create-sale "sale1" "on-chain" 
+  (time "2000-01-02T00:00:00Z") 
+  (time "2000-01-10T00:00:00Z") 
+  100.0 
+  6000.0 
+  10000.0 
+  true
+)
+
+; Check sale values
+(expect-that "Correct total supply"
+  (= 10000.0)
+  (total-supply "sale1")
+)
+(expect-that "Correct available supply"
+  (= 10000.0)
+  (available-supply "sale1")
+)
+(expect-that "Correct sale price"
+  (= 100.0)
+  (get-sale-price "sale1")
+)
+
+; Expect failure for: not whitelisted, out of time bounds
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+(expect-failure "Before sale begins"
+  (reserve-on-chain "sale1" "person1" 50.0)
+)
+(env-chain-data { "block-time": (time "2000-01-11T00:00:00Z") })
+(expect-failure "After sale ended"
+  (reserve-on-chain "sale1" "person1" 50.0)
+)
+(env-chain-data { "block-time": (time "2000-01-05T00:00:00Z") })
+(expect-failure "Not whitelisted"
+  (reserve-on-chain "sale1" "person1" 2.5)
+)
+
+; Whitelist and reserve, expect proper amount reserved
+(expect-that "Successfully added to whitelist"
+  (= "person1 added to whitelist")
+  (add-whitelist "person1")
+)
+(expect-that "correct allocation available"
+  (= 6000.0)
+  (token-allocation-account-available "sale1" "person1")
+)
+(expect-that "Successfully reserves"
+  (= "person1 reserved 5000.0 token on sale1")
+  (reserve-on-chain "sale1" "person1" 50.0)
+)
+
+(expect-that "correct allocation available"
+  (= 1000.0)
+  (token-allocation-account-available "sale1" "person1")
+)
+(expect-that "correct amount of tokens reserved" 
+  (= 5000.0)
+  (token-reserved-account "sale1" "person1")
+)
+
+; Reserve too much fails
+(expect-failure "Try to reserve too much"
+  (reserve-on-chain "sale1" "person1" 50.0)  
+)
+
+; Reserve again to match, works
+(expect-that "Successfully reserves"
+  (= "person1 reserved 1000.0 token on sale1")
+  (reserve-on-chain "sale1" "person1" 10.0)
+)
+(expect-that "correct allocation available"
+  (= 0.0)
+  (token-allocation-account-available "sale1" "person1")
+)
+(expect-that "correct amount of tokens reserved" 
+  (= 6000.0)
+  (token-reserved-account "sale1" "person1")
+)
+
+; Check available supply and transferred tokens
+(expect-that "Correct available supply"
+  (= 4000.0)
+  (available-supply "sale1")
+)
+(expect-that "Correctly transfers KDA"
+  (= 60.0)
+  (coin.get-balance "token-sale-bank")
+)
+
+; Reserving over the sales token supply fails
+(expect-failure "Reserve over token supply"
+  (reserve-on-chain "sale1" "person1" 1000.0)
+)
+
+(approve-all)
+
+(end-sale "sale1" "succeeded")
+(expect-failure "Sale ended"
+  (reserve-on-chain "sale1" "person1" 2.5)
+)
+
+(commit-tx)
+
+
+
+(begin-tx)
+(use free.token-sale-manager)
+
+(env-keys ["ops", "person1", "person2"])
+(env-data 
+  { 
+    "person1-keyset": { "keys": ["person1"], "pred": "keys-all"},
+    "person2-keyset": { "keys": ["person2"], "pred": "keys-all"}
+  })
+(env-sigs 
+  [
+    { 
+      'key: "ops", 
+      'caps:
+      [
+        (free.token-sale-manager.OPS)
+      ]
+    },
+    { 
+      'key: "person1", 
+      'caps:
+      [
+        (free.token-sale-manager.RESERVE "sale2" (free.token-sale-manager.curr-time) "on-chain")
+        (coin.TRANSFER "person1" "token-sale-bank" 100.0)
+      ]
+    },
+    { 
+      'key: "person2", 
+      'caps:
+      [
+        (free.token-sale-manager.RESERVE "sale2" (free.token-sale-manager.curr-time) "on-chain")
+        (coin.TRANSFER "person2" "token-sale-bank" 100.0)
+      ]
+    }
+  ]
+)
+
+;; Test Case 2
+; Create Public Sale
+; Attempt to reserve with person 2 without whitelist, expect success
+; Get my reserved amount, expect correct amount
+; Attempt to reserve with person 1 whitelist, expect success
+; Approve reserve(s)
+; End sale
+; Attempt to reserve, expect failure
+; Get all reserved amounts and ensure they are correct
+
+; Create sale
+(create-sale "sale2" "on-chain" 
+  (time "2000-01-02T00:00:00Z") 
+  (time "2000-01-10T00:00:00Z") 
+  100.0 
+  6000.0 
+  100000.0 
+  false
+)
+
+(expect-that "correct allocation available"
+  (= 6000.0)
+  (token-allocation-account-available "sale2" "person2")
+)
+(expect-that "Successfully reserves"
+  (= "person2 reserved 5000.0 token on sale2")
+  (reserve-on-chain "sale2" "person2" 50.0)
+)
+
+(expect-that "correct allocation available"
+  (= 1000.0)
+  (token-allocation-account-available "sale2" "person2")
+)
+(expect-that "correct amount of tokens reserved" 
+  (= 5000.0)
+  (token-reserved-account "sale2" "person2")
+)
+
+; Reserve again to match, works
+(expect-that "Successfully reserves"
+  (= "person2 reserved 1000.0 token on sale2")
+  (reserve-on-chain "sale2" "person2" 10.0)
+)
+(expect-that "correct allocation available"
+  (= 0.0)
+  (token-allocation-account-available "sale2" "person2")
+)
+(expect-that "correct amount of tokens reserved" 
+  (= 6000.0)
+  (token-reserved-account "sale2" "person2")
+)
+
+; Check available supply and transferred tokens
+(expect-that "Correct available supply"
+  (= 94000.0)
+  (available-supply "sale2")
+)
+(expect-that "Correctly transfers KDA, added to previous Tx"
+  (= 120.0)
+  (coin.get-balance "token-sale-bank")
+)
+
+(approve-all)
+
+(expect-that "Successfully reserves"
+  (= "person1 reserved 5000.0 token on sale2")
+  (reserve-on-chain "sale2" "person1" 50.0)
+)
+
+(end-sale "sale2" "succeeded")
+(expect-failure "Sale ended"
+  (reserve-on-chain "sale2" "person2" 2.5)
+)
+
+(commit-tx)
+
+
+(begin-tx)
+(use free.token-sale-manager)
+
+; Check reservations, ensure correct
+(fetch-reservations "sale2")
+(fetch-account-reservations "sale2" "person2")
+
+(commit-tx)

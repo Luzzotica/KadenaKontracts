@@ -1,0 +1,85 @@
+(begin-tx)
+(env-keys 
+  ["kdx-admin", 
+  "kdx-ops", 
+  "operate", 
+  "admin"])
+(env-data 
+  { 
+    "ns-admin-keyset": ["admin"],
+    "ns-operate-keyset": ["operate"],
+    "ns-genesis-keyset": { "keys": [], "pred": "="},
+    "kdx-admin-keyset": { "keys": ["kdx-admin"], "pred": "keys-any"},
+    'namespace: "kaddex",
+    'upgrade: true
+  })
+
+(load "ns.pact")
+
+(ns.write-registry "kaddex"
+  (keyset-ref-guard 'ns-operate-keyset ) true)
+(write-registry "user" GUARD_FAILURE true)
+(write-registry "free" GUARD_FAILURE true)
+
+(define-namespace "kaddex"
+  (keyset-ref-guard 'ns-operate-keyset )
+  (keyset-ref-guard 'ns-operate-keyset ))
+
+(define-keyset "kdx-admin-keyset")
+
+(load "fungible-v2.pact")
+(load "fungible-xchain-v1.pact")
+(load "special-accounts-v1.pact")
+(load "supply-control-v1.pact")
+(load "kdx.pact")
+
+(commit-tx)
+
+
+(begin-tx)
+(use kaddex.kdx)
+
+(env-keys [
+  "kdx-admin"
+  , "wallet1"
+  , "wallet2"
+  , "wallet3"
+])
+(env-data 
+  { 
+    "kdx-admin-keyset": { "keys": ["kdx-admin"], "pred": "keys-any"}
+    ,  "wallet1": { "keys": ["wallet1"], "pred": "keys-any"}
+    ,  "wallet2": { "keys": ["wallet2"], "pred": "keys-any"}
+    ,  "wallet3": { "keys": ["wallet3"], "pred": "keys-any"}
+  })
+
+(define-keyset "kdx-admin-keyset")
+
+(update-mint-cap MAX_SUPPLY)
+(mint "network-rewards" "kdx-minter" (read-keyset "kdx-admin-keyset") 100000.0)
+"Details: "
+(details "kdx-minter")
+
+(env-sigs [
+  { 'key: "kdx-admin", 
+    'caps:
+    [
+      (TRANSFER "kdx-minter" "wallet1" 100.0),
+      (TRANSFER "kdx-minter" "wallet2" 100.0),
+      (TRANSFER "kdx-minter" "wallet3" 200.0)
+    ]
+  }
+  ])
+
+(create-account "wallet1" (read-keyset "wallet1"))
+(transfer "kdx-minter" "wallet1" 100.0)
+(create-account "wallet2" (read-keyset "wallet2"))
+(transfer "kdx-minter" "wallet2" 100.0)
+(create-account "wallet3" (read-keyset "wallet3"))
+(transfer "kdx-minter" "wallet3" 200.0)
+
+(details "wallet1")
+(details "wallet2")
+(details "wallet3")
+
+(commit-tx)

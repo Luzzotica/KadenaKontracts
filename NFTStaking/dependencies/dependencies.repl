@@ -1,0 +1,105 @@
+(begin-tx)
+
+(env-keys 
+  ["operate", 
+  "admin",
+  "marmalade"])
+(env-data 
+  { 
+    "ns-admin-keyset": ["admin"],
+    "ns-operate-keyset": ["operate"],
+    "ns-genesis-keyset": { "keys": [], "pred": "="},
+    "marmalade-admin": ["marmalade"],
+    "upgrade": true
+  })
+
+(define-keyset "ns-admin-keyset" (read-keyset "ns-admin-keyset"))
+(define-keyset "ns-operate-keyset" (read-keyset "ns-operate-keyset"))
+(define-keyset "marmalade-admin" (read-keyset "marmalade-admin"))
+
+(load "ns.pact")
+
+(ns.write-registry "marmalade" 
+  (keyset-ref-guard "ns-operate-keyset") true)
+(write-registry "user" GUARD_FAILURE true)
+(write-registry "free" GUARD_FAILURE true)
+
+(define-namespace "marmalade"
+  (keyset-ref-guard "ns-operate-keyset" )
+  (keyset-ref-guard "ns-operate-keyset" ))
+
+(ns.write-registry "kip" 
+  (keyset-ref-guard "ns-operate-keyset") true)
+(write-registry "user" GUARD_FAILURE true)
+(write-registry "free" GUARD_FAILURE true)
+
+(define-namespace "kip"
+  (keyset-ref-guard "ns-operate-keyset" )
+  (keyset-ref-guard "ns-operate-keyset" ))
+
+(ns.write-registry "util" 
+  (keyset-ref-guard "ns-operate-keyset") true)
+(write-registry "user" GUARD_FAILURE true)
+(write-registry "free" GUARD_FAILURE true)
+
+(define-namespace "util"
+  (keyset-ref-guard "ns-operate-keyset" )
+  (keyset-ref-guard "ns-operate-keyset" ))
+
+;; Load in coin
+(load "fungible-v2.pact")
+(load "fungible-xchain-v1.pact")
+(load "coin.pact")
+
+;; Load in ledger
+(load "token-manifest.pact")
+(load "token-policy-v1.pact")
+(load "poly-fungible-v2.pact")
+(load "account-protocols-v1.pact")
+(load "fungible-util.pact")
+(load "legder.pact")
+
+;; Load in my personal test marmalade policy
+(load "token-policy-transfer.pact")
+
+(use coin)
+
+(env-keys ["person1", "person2", "person3", "mint", "burn", "sale", "transfer"])
+(env-data 
+  { 
+    "person1-keyset": { "keys": ["person1"], "pred": "="},
+    "person2-keyset": { "keys": ["person2"], "pred": "="},
+    "person3-keyset": { "keys": ["person3"], "pred": "="},
+    "mint-guard": ["mint"],
+    "burn-guard": ["burn"],
+    "sale-guard": ["sale"],
+    "transfer-guard": ["transfer"],
+    "upgrade": true
+  })
+(env-sigs
+  [{
+    "key": "mint",
+    "caps": [
+      (marmalade.ledger.MINT "token" "person1" 3.0)
+    ]
+  }])
+
+(fund-account "person1" (read-keyset "person1-keyset") 10000.0)
+(fund-account "person2" (read-keyset "person2-keyset") 10000.0)
+(fund-account "person3" (read-keyset "person3-keyset") 10000.0)
+
+(marmalade.ledger.create-account "token" "person1" (read-keyset "person1-keyset"))
+
+(let* 
+  (
+    (uri (kip.token-manifest.uri "swag" "hello"))
+    (datum (kip.token-manifest.create-datum uri {"data":"cool"} ))
+    (manifest (kip.token-manifest.create-manifest uri [datum] ))
+  )
+  
+  (marmalade.ledger.create-token "token" 0 manifest free.token-policy-transfer)
+  (install-capability (marmalade.ledger.MINT "token" "person1" 3.0))
+  (marmalade.ledger.mint "token" "person1" (read-keyset "person1-keyset") 3.0)
+)
+
+(commit-tx)

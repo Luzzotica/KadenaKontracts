@@ -1,0 +1,37 @@
+(begin-tx)
+
+(env-keys 
+  ["operate", 
+  "admin"])
+(env-data 
+  { 
+    "ns-admin-keyset": ["admin"],
+    "ns-operate-keyset": ["operate"],
+    "ns-genesis-keyset": { "keys": [], "pred": "="},
+    'upgrade: true
+  })
+
+(load "ns.pact")
+
+(load "fungible-v2.pact")
+(load "fungible-xchain-v1.pact")
+(load "coin.pact")
+
+(create-table coin.coin-table)
+(create-table coin.allocation-table)
+
+(use coin)
+
+(env-keys ["person1", "person2", "person3"])
+(env-data 
+  { 
+    "person1-keyset": { "keys": ["person1"], "pred": "="},
+    "person2-keyset": { "keys": ["person2"], "pred": "="},
+    "person3-keyset": { "keys": ["person3"], "pred": "="}
+  })
+
+(fund-account "person1" (read-keyset "person1-keyset") 10000.0)
+(fund-account "person2" (read-keyset "person2-keyset") 10000.0)
+(fund-account "person3" (read-keyset "person3-keyset") 10000.0)
+
+(commit-tx)
