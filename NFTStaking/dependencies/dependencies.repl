@@ -1,50 +1,11 @@
+(load "ns.repl")
+
 (begin-tx)
 
-(env-keys 
-  ["operate", 
-  "admin",
-  "marmalade"])
 (env-data 
   { 
-    "ns-admin-keyset": ["admin"],
-    "ns-operate-keyset": ["operate"],
-    "ns-genesis-keyset": { "keys": [], "pred": "="},
-    "marmalade-admin": ["marmalade"],
     "upgrade": true
   })
-
-(define-keyset "ns-admin-keyset" (read-keyset "ns-admin-keyset"))
-(define-keyset "ns-operate-keyset" (read-keyset "ns-operate-keyset"))
-(define-keyset "marmalade-admin" (read-keyset "marmalade-admin"))
-
-(load "ns.pact")
-
-(ns.write-registry "marmalade" 
-  (keyset-ref-guard "ns-operate-keyset") true)
-(write-registry "user" GUARD_FAILURE true)
-(write-registry "free" GUARD_FAILURE true)
-
-(define-namespace "marmalade"
-  (keyset-ref-guard "ns-operate-keyset" )
-  (keyset-ref-guard "ns-operate-keyset" ))
-
-(ns.write-registry "kip" 
-  (keyset-ref-guard "ns-operate-keyset") true)
-(write-registry "user" GUARD_FAILURE true)
-(write-registry "free" GUARD_FAILURE true)
-
-(define-namespace "kip"
-  (keyset-ref-guard "ns-operate-keyset" )
-  (keyset-ref-guard "ns-operate-keyset" ))
-
-(ns.write-registry "util" 
-  (keyset-ref-guard "ns-operate-keyset") true)
-(write-registry "user" GUARD_FAILURE true)
-(write-registry "free" GUARD_FAILURE true)
-
-(define-namespace "util"
-  (keyset-ref-guard "ns-operate-keyset" )
-  (keyset-ref-guard "ns-operate-keyset" ))
 
 ;; Load in coin
 (load "fungible-v2.pact")

@@ -1,6 +1,7 @@
 (load "dependencies/dependencies.repl")
 
 (begin-tx)
+(env-enable-repl-natives true)
 (env-keys ["person1", "person2", "person3", "mint", "burn", "sale", "transfer"])
 (env-data 
   { 
@@ -31,26 +32,10 @@
 (use free.marmalade-nft-staker)
 
 ;; Can create a stakable nft and access values
-(env-keys ["person2"])
-(env-data 
-  { 
-    "person2-keyset": { "keys": ["person2"], "pred": "="}
-  })
-(env-sigs
-  [{
-    "key": "person2",
-    "caps": [
-      (coin.TRANSFER "person2" "bank" 5000.0)
-      (coin.TRANSFER "bank" "person2" 2500.0)
-      (free.marmalade-nft-staker.WITHDRAW "pool1")
-    ]
-  }])
 (create-stakable-nft 
   "pool1"
   "token"
   coin
-  "bank"
-  "escrow"
   0.1
   1000.0
   60.0
@@ -60,20 +45,34 @@
   (get-current-apy "pool1")
 )
 
-;; Transfer funds into and out of bank
-(install-capability (coin.TRANSFER "person2" "bank" 5000.0))
-(coin.transfer "person2" "bank" 5000.0)
+(env-keys ["person2"])
+(env-sigs
+  [{
+    "key": "person2",
+    "caps": [
+      (coin.TRANSFER "person2" (get-bank-for-pool "pool1") 5000.0)
+    ]
+  }])
+(coin.transfer "person2" (get-bank-for-pool "pool1") 5000.0)
 (expect-that "5000 in the bank"
   (= 5000.0)
-  (at "balance" (coin.details "bank"))
+  (at "balance" (coin.details (get-bank-for-pool "pool1")))
 )
+
+(env-sigs
+  [{
+    "key": "person2",
+    "caps": [
+      (free.marmalade-nft-staker.WITHDRAW "pool1")
+    ]
+  }])
 (expect-that "Withdraw 2500 from bank"
-  (= "Withdrew 2500.0 coins from bank")
+  (= (format "Withdrew 2500.0 coins from {}" [(get-bank-for-pool "pool1")]))
   (withdraw-from-bank "pool1" "person2" 2500.0)
 )
 (expect-that "2500 in the bank"
   (= 2500.0)
-  (at "balance" (coin.details "bank"))
+  (at "balance" (coin.details (get-bank-for-pool "pool1")))
 )
 
 ;; Staking works, and can't stake if you already have tokens staked
@@ -86,12 +85,10 @@
   [{
     "key": "person1",
     "caps": [
-      ;  (free.marmalade-nft-staker.STAKE "person1" "escrow" "token" 1.0),
-      (free.marmalade-nft-staker.UNSTAKE "person1" "escrow" (read-keyset "person1-keyset") "token"),
-      (marmalade.ledger.TRANSFER "token" "person1" "escrow" 2.0),
-      (coin.TRANSFER "bank" "person1" 2500.0)
+      (marmalade.ledger.TRANSFER "token" "person1" (get-escrow-for-pool "pool1") 2.0)
     ]
   }])
+(get-escrow-for-pool "pool1")
 (stake "person1" (read-keyset "person1-keyset") "pool1" "token" 2.0)
 (expect-that "1 token in balance"
   (= 1.0)
@@ -105,6 +102,13 @@
   (stake "person1" (read-keyset "person1-keyset") "pool1" "token" 1.0)
 )
 
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (free.marmalade-nft-staker.UNSTAKE (read-keyset "person1-keyset"))
+    ]
+  }])
 ;; Must wait for lock-time before you can unstake
 (expect-failure "Wait for lock time to unstake"
   (unstake "person1" "pool1" "token")
@@ -152,8 +156,8 @@
   [{
     "key": "person1",
     "caps": [
-      (free.marmalade-nft-staker.UNSTAKE "person1" "escrow" (read-keyset "person1-keyset") "token"),
-      (marmalade.ledger.TRANSFER "token" "person1" "escrow" 1.0)
+      (free.marmalade-nft-staker.UNSTAKE (read-keyset "person1-keyset"))
+      (marmalade.ledger.TRANSFER "token" "person1" (get-escrow-for-pool "pool1") 1.0)
     ]
   }])
 (stake "person1" (read-keyset "person1-keyset") "pool1" "token" 1.0)
@@ -168,8 +172,7 @@
   [{
     "key": "person3",
     "caps": [
-      ;  (free.marmalade-nft-staker.UNSTAKE "person1" "escrow" (read-keyset "person1-keyset") "token"),
-      (marmalade.ledger.TRANSFER "token" "person3" "escrow" 1.0)
+      (free.marmalade-nft-staker.UNSTAKE (read-keyset "person3-keyset"))
     ]
   }])
 
@@ -177,6 +180,13 @@
   (unstake "person1" "pool1" "token")  
 )
 
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staker.WITHDRAW "pool1")
+    ]
+  }])
 (expect-failure "Withdraw from pool bank fails"
   (withdraw-from-bank "pool1" "person3" 100.0)
 )
