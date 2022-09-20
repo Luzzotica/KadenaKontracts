@@ -122,7 +122,10 @@
 )
 
 ;; Unstaking works as expected, fails to unstake if there is nothing staked
-(unstake "person1" "pool1" "token")
+(expect-that "Unstaking claims 200.0 tokens"
+  (= 200.0)
+  (unstake "person1" "pool1" "token")
+)
 (expect-that "person1 has his tokens back"
   (= 3.0)
   (at "balance" (marmalade.ledger.details "token" "person1"))

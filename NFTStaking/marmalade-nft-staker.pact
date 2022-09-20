@@ -179,8 +179,9 @@
     )
   )
 
-  (defun unstake:string (account:string pool-name:string token-id:string)
-    @doc "Moves the given amount of token-id from escrow and claims the tokens"
+  (defun unstake:decimal (account:string pool-name:string token-id:string)
+    @doc "Moves the given amount of token-id from escrow and claims the tokens. \
+    \ Returns the number of tokens claimed from the unstake action."
     
     (with-read stakable-nfts pool-name
       { "escrow-account" := escrow
@@ -203,9 +204,10 @@
               (stake-time-seconds:decimal (diff-time (curr-time) stake-start-time))
               (wait-time-seconds:decimal (- lock-time stake-time-seconds))
             )
+            ;  (wait-time-seconds-str:string (int-to-str 10 (ceiling wait-time-seconds)))
             (enforce (> stake-time-seconds lock-time) 
+              ;  (concat ["You must wait " wait-time-seconds-str " seconds before you can unstake"])
               (format "You must wait {} seconds before you can unstake" [wait-time-seconds])
-              ;  (concat ["You must wait " (decimal-to-string wait-time-seconds) " seconds before you can unstake"])
             )
           )
 
@@ -231,7 +233,8 @@
             (install-capability (payout-coin::TRANSFER bank account return))
             (payout-coin::transfer-create bank account guard return)
             ;  (concat ["Unstake claimed " (decimal-to-str return) " tokens"])
-            (format "Unstake claimed {} tokens" [return])
+            ;  (format "Unstake claimed {} tokens" [return])
+            return
           )
         )
       )
@@ -290,22 +293,7 @@
   (defun pool-account-name:string (pool-name:string)
     (create-principal (pool-guard pool-name))
   )
-
-  ;  (defun escrow-account:string ()
-  ;    @doc "Creates the escrow account that the token is transferred into"
-  ;    (create-principal (create-user-guard "ESCROW"))
-  ;  )
-
-  ;  (defun escrow-guard ()
-  ;    @doc "Generates a guard for the escrow account"
-  ;    (require-capability (ESCROW))
-  ;  )
-
-  ;  (defun bank-guard:bool (guard:guard)
-  ;    @doc "Creates the guard that is put on the payout account."
-  ;    (require-capability (BANK))
-  ;  )
-
+  
   (defun withdraw-from-bank:string (pool-name:string receiver:string amount:decimal)
     @doc "Admin function that enables stakable NFT managers to withdraw from a payout account"
     (with-capability (WITHDRAW pool-name)
@@ -316,7 +304,7 @@
         
         (install-capability (payout-coin::TRANSFER payout-bank receiver amount))
         (payout-coin::transfer-create payout-bank receiver guard amount)
-        ;  (concat ["Withdrew " amount " coins from " payout-bank])
+        ;  (concat ["Withdrew " (int-to-str 10 (floor amount)) " coins (Rounded down) from " payout-bank])
         (format "Withdrew {} coins from {}" [amount payout-bank])
       )
     )
