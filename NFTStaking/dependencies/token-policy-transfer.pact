@@ -1,9 +1,12 @@
 (namespace "free")
 
-(module token-policy-transfer GOVERNANCE
+;  (define-keyset "free.nft-staker-admin" (read-keyset "nft-staker-admin"))
 
-  (defcap GOVERNANCE ()
-    (enforce-guard (keyset-ref-guard "marmalade-admin" )))
+(module token-policy-transfer GOV
+
+  (defcap GOV ()
+    (enforce-keyset "free.nft-staker-admin")
+  )
 
   (implements kip.token-policy-v1)
   (use kip.token-policy-v1 [token-info])
@@ -106,6 +109,6 @@
   )
 )
 
-(if (read-msg "upgrade")
+(if (read-msg "init")
   [ (create-table policy-guards) ]
-  "No upgrade")
+  "No init")

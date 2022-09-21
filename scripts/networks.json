@@ -1,0 +1,10 @@
+{
+  "mainnet": {
+    "base_url": "https://api.chainweb.com",
+    "network_id": "mainnet01"
+  },
+  "testnet": {
+    "base_url": "https://api.chainweb.com",
+    "network_id": "testnet04"
+  }
+}

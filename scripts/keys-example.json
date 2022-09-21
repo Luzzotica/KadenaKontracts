@@ -1,0 +1,7 @@
+{
+  "priv_key": {
+    "service": "kadena",
+    "username": "deploy"
+  },
+  "pub_key": "my_cool_pub_key"
+}

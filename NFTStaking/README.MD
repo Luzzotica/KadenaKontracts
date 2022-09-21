@@ -5,6 +5,10 @@ Made by Sterling Long, please use with care.
 The `marmalade-nft-staker` is a generic marmalade staking contract.
 Once deployed, anyone can create a pool, with a payout token that lets people stake marmalade NFTs AS LONG AS the policy enables transferring.
 
+## Assumptions
+
+This contract assumes you have already created a marmalade NFT, and have the ID of that token. You will need the token id to create the pool wheree your users can stake the NFT.
+
 ## Process
 
 1. Deploy the contract, include `init: true` in the data of the contract deployment.

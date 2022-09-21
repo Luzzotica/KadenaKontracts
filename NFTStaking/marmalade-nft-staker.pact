@@ -1,18 +1,18 @@
 (namespace "free")
 
+(define-keyset "free.nft-staker-admin" (read-keyset "nft-staker-admin"))
+
 (module marmalade-nft-staker GOV
   @doc "A contract that is used to stake marmalade NFTs. \
   \ Staking the NFT moves it into an escrow account using a pact. \
   \ Thus, the NFT policy must accept transferring the token, or this will fail."
 
   (defcap GOV ()
-    (enforce-keyset GOV_KEYSET)
+    (enforce-keyset "free.nft-staker-admin")
   )
 
   ;; -------------------------------
   ;; Constants
-
-  (defconst GOV_KEYSET "free.staker-admin")
 
   (defconst SECONDS_IN_YEAR:integer 31536000)
 
@@ -69,16 +69,6 @@
       (enforce-guard guard)
     )
   )
-
-  ;  (defcap ESCROW ()
-  ;    @doc "Used to give permission to execute staking and unstaking functions"
-  ;    true
-  ;  )
-
-  ;  (defcap BANK ()
-  ;    @doc "Used to give permission to execute transfer functions from the bank"
-  ;    true
-  ;  )
 
   ;; -------------------------------
   ;; Stakable NFT Managing
@@ -241,11 +231,19 @@
     )
   )
 
+  (defun get-pools:[object{stakable-nft}] ()
+    (select stakable-nfts)
+  )
+
+  (defun get-staked-nfts-for-account:[object{staked-nft}] (account:string)
+    (select staked-nfts (where "account" (= account)))
+  )
+
   (defun get-staked-for-pool:decimal (pool-name:string account:string)
     (at "amount" (read staked-nfts (key pool-name account) ["amount"]))
   )
 
-  (defun get-current-apy:decimal (pool-name:string)
+  (defun get-apy-for-pool:decimal (pool-name:string)
     (at "apy" (read stakable-nfts pool-name ["apy"]))
   )
 
