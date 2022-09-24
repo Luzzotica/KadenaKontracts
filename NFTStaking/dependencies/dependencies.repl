@@ -4,7 +4,8 @@
 
 (env-data 
   { 
-    "upgrade": true
+    "upgrade": true,
+    "init": true
   })
 
 ;; Load in coin

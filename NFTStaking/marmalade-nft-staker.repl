@@ -2,9 +2,10 @@
 
 (begin-tx)
 (env-enable-repl-natives true)
-(env-keys ["person1", "person2", "person3", "mint", "burn", "sale", "transfer"])
+(env-keys ["admin", "person1", "person2", "person3", "mint", "burn", "sale", "transfer"])
 (env-data 
   { 
+    "nft-staker-admin": { "keys": ["admin"], "pred": "="},
     "person1-keyset": { "keys": ["person1"], "pred": "="},
     "person2-keyset": { "keys": ["person2"], "pred": "="},
     "person3-keyset": { "keys": ["person3"], "pred": "="},
@@ -42,7 +43,7 @@
   (read-keyset "person2-keyset"))
 (expect-that "apy is correct"
   (= 0.1)
-  (get-current-apy "pool1")
+  (get-apy-for-pool "pool1")
 )
 
 (env-keys ["person2"])
