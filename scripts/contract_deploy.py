@@ -50,25 +50,14 @@ payload = {
 signers = [
   {
     "pubKey": key_pair.get_pub_key(),
-    "clist": [
-      {
-        "name": f"free.marmalade-nft-staker.GOV",
-        "args": []
-      },
-      {
-        "name": "coin.GAS",
-        "args": []
-      }
-    ],
+    # Unrestricted signing key!
   }
 ]
 
 print()
 cmd = sdk.build_command(f'k:{key_pair.get_pub_key()}', payload, signers)
-result = sdk.local(cmd)
+# result = sdk.local(cmd)
+result = sdk.send_and_listen(cmd)
 print(result.text)
-
-# result = sdk.send_and_listen(cmd)
-# print(result.text)
 
 print()

@@ -107,7 +107,7 @@
   [{
     "key": "person1",
     "caps": [
-      (free.marmalade-nft-staker.UNSTAKE (read-keyset "person1-keyset"))
+      (free.marmalade-nft-staker.UNSTAKE "pool1" "person1")
     ]
   }])
 ;; Must wait for lock-time before you can unstake
@@ -160,7 +160,6 @@
   [{
     "key": "person1",
     "caps": [
-      (free.marmalade-nft-staker.UNSTAKE (read-keyset "person1-keyset"))
       (marmalade.ledger.TRANSFER "token" "person1" (get-escrow-for-pool "pool1") 1.0)
     ]
   }])
@@ -176,7 +175,7 @@
   [{
     "key": "person3",
     "caps": [
-      (free.marmalade-nft-staker.UNSTAKE (read-keyset "person3-keyset"))
+      (free.marmalade-nft-staker.UNSTAKE "pool1" "person1")
     ]
   }])
 

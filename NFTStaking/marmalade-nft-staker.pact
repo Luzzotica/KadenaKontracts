@@ -1,6 +1,6 @@
 (namespace "free")
 
-(define-keyset "free.nft-staker-admin" (read-keyset "nft-staker-admin"))
+;  (define-keyset "free.nft-staker-admin" (read-keyset "nft-staker-admin"))
 
 (module marmalade-nft-staker GOV
   @doc "A contract that is used to stake marmalade NFTs. \
@@ -8,7 +8,7 @@
   \ Thus, the NFT policy must accept transferring the token, or this will fail."
 
   (defcap GOV ()
-    (enforce-keyset "free.nft-staker-admin")
+    (enforce-guard "free.nft-staker-admin")
   )
 
   ;; -------------------------------
@@ -55,11 +55,11 @@
     true
   )
 
-  (defcap UNSTAKE 
-    (
-      guard:guard
+  (defcap UNSTAKE (pool-name:string account:string)
+    (with-read staked-nfts (key pool-name account)
+        { "guard" := guard }
+        (enforce-guard guard)
     )
-    (enforce-guard guard)
   )
 
   (defcap WITHDRAW (pool-name:string)
@@ -186,7 +186,7 @@
         , "amount" := amount
         , "stake-start-time" := stake-start-time }
 
-        (with-capability (UNSTAKE guard)
+        (with-capability (UNSTAKE pool-name account)
           (enforce (> amount 0.0) "Cannot unstake if you have nothing staked")
           ; Ensure lock time has passed
           (let*
