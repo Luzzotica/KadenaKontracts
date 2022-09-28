@@ -22,7 +22,7 @@ payload = {
     "data": {
       "nft-staker-admin": { "keys": [key_pair.get_pub_key()], "pred": "keys-all"}
     },
-    "code": f'(free.marmalade-nft-staker.unstake "k:{key_pair.get_pub_key()}" "pool-test" "stakable-nft")',
+    "code": f'(free.marmalade-nft-staker-3.unstake "k:{key_pair.get_pub_key()}" "pool-test" "stakable-nft")',
   }
 }
 signers = [
@@ -30,8 +30,8 @@ signers = [
     "pubKey": key_pair.get_pub_key(),
     "clist": [
       {
-        "name": "free.marmalade-nft-staker.UNSTAKE",
-        "args": ["(read-keyset \"nft-staker-admin\")"]
+        "name": "free.marmalade-nft-staker-3.UNSTAKE",
+        "args": ["pool-test", f"k:{key_pair.get_pub_key()}"]
       },
       {
         "name": "coin.GAS",

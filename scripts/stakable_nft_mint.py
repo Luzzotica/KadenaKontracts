@@ -1,7 +1,7 @@
 from kadena_sdk.kadena_sdk import KadenaSdk
 from kadena_sdk.key_pair import KeyPair
 
-TOKEN_ID = "stakable-nft-2"
+TOKEN_ID = "stakable-nft"
 
 MAINNET = {
   'base_url': 'https://api.chainweb.com',
@@ -22,19 +22,7 @@ sdk = KadenaSdk(key_pair,
   NETWORK['chain_id'])
 
 code = f"""
-(marmalade.ledger.create-account "{TOKEN_ID}" "k:{key_pair.get_pub_key()}" (read-keyset "nft-staker-admin"))
-
-(let* 
-  (
-    (uri (kip.token-manifest.uri "swag" "hello"))
-    (datum (kip.token-manifest.create-datum uri {{"data":"cool"}} ))
-    (manifest (kip.token-manifest.create-manifest uri [datum] ))
-  )
-  
-  (marmalade.ledger.create-token "{TOKEN_ID}" 0 manifest free.token-policy-transfer)
-  (install-capability (marmalade.ledger.MINT "{TOKEN_ID}" "k:{key_pair.get_pub_key()}" 10.0))
-  (marmalade.ledger.mint "{TOKEN_ID}" "k:{key_pair.get_pub_key()}" (read-keyset "nft-staker-admin") 10.0)
-)
+(marmalade.ledger.mint "{TOKEN_ID}" "k:{key_pair.get_pub_key()}" (read-keyset "nft-staker-admin") 10.0)
 """
 
 payload = {

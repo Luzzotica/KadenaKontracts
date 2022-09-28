@@ -1,8 +1,15 @@
-import json
 
 from kadena_sdk.kadena_sdk import KadenaSdk
 from kadena_sdk.key_pair import KeyPair
 
+# Code to run
+PACT_CODE = '(describe-keyset "free.nft-staker-admin")'
+
+MAINNET = {
+  'base_url': 'https://api.chainweb.com',
+  'network_id': 'mainnet01',
+  'chain_id': '1',
+}
 TESTNET = {
   'base_url': 'https://api.testnet.chainweb.com',
   'network_id': 'testnet04',
@@ -21,26 +28,32 @@ payload = {
     "data": {
       "nft-staker-admin": { "keys": [key_pair.get_pub_key()], "pred": "keys-all"}
     },
-    "code": f'(free.marmalade-nft-staker-3.stake "k:{key_pair.get_pub_key()}" (read-keyset "nft-staker-admin") "pool-test" "stakable-nft" 10.0)',
+    "code": PACT_CODE,
   }
 }
 signers = [
   {
     "pubKey": key_pair.get_pub_key(),
     "clist": [
-      {
-        "name": "marmalade.ledger.TRANSFER",
-        "args": ["stakable-nft", f"k:{key_pair.get_pub_key()}", "m:free.marmalade-nft-staker-3:pool-test", 10.0]
-      },
-      {
-        "name": "coin.GAS",
-        "args": []
-      }
+      # {
+      #   "name": f"{CONTRACT_NAME}.GOV",
+      #   "args": []
+      # },
+      # {
+      #   "name": "coin.GAS",
+      #   "args": []
+      # }
     ],
   }
 ]
 
+print()
+print('wswag')
 cmd = sdk.build_command(f'k:{key_pair.get_pub_key()}', payload, signers)
-# result = sdk.local(cmd)
-result = sdk.send_and_listen(cmd)
+result = sdk.local(cmd)
 print(result.text)
+
+# result = sdk.send_and_listen(cmd)
+# print(result.text)
+
+print()
