@@ -1,0 +1,482 @@
+(load "dependencies/dependencies.repl")
+
+(begin-tx "Setup")
+;  (env-enable-repl-natives true)
+(env-keys ["admin", "ops"])
+(env-data 
+  { 
+    "gov": { "keys": ["admin"], "pred": "="},
+    "ops": { "keys": ["ops"], "pred": "="},
+    "init": true
+  })
+
+(load "marmalade-nft-bonding.pact")
+
+(commit-tx)
+
+
+
+;; TX tests creating a pool, setters, and getters.
+;; TX does not test for any errors or permissions.
+(begin-tx "Test creating pool, setters, getters")
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+
+(use free.marmalade-nft-bonding)
+
+;; Can create a bonded nft and access values
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [(OPS)]
+  }])
+(create-bonded-nft 
+  "pool1"
+  "token"
+  coin
+  1000.0
+  (time "2000-01-10T00:00:00Z"))
+(expect-that "status is correct"
+  (= "ACTIVE")
+  (get-pool-status "pool1")
+)
+(expect-that "nft bond value is correct"
+  (= 1000.0)
+  (get-pool-nft-value "pool1")
+)
+(expect-that "mature time is correct"
+  (= (time "2000-01-10T00:00:00Z"))
+  (get-pool-mature-time "pool1")
+)
+
+;; Fund the bank using person 1
+(env-keys ["person1"])
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (coin.TRANSFER "person1" (get-pool-bank "pool1") 100000.0)
+    ]
+  }])
+(coin.transfer "person1" (get-pool-bank "pool1") 100000.0)
+(expect-that "100000.0 in the bank"
+  (= 100000.0)
+  (at "balance" (coin.details (get-pool-bank "pool1")))
+)
+
+;; Withdraw from the bank
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [
+      (free.marmalade-nft-bonding.OPS)
+    ]
+  }])
+(expect-that "Withdraw 1000 from bank"
+  (= (format "Withdrew 1000.0 coins from {}" [(get-pool-bank "pool1")]))
+  (withdraw-from-bank "pool1" "person1" 1000.0)
+)
+(expect-that "99000 in the bank"
+  (= 99000.0)
+  (at "balance" (coin.details (get-pool-bank "pool1")))
+)
+(expect-that "1000.0 back in person1's bank"
+  (= 1000.0)
+  (at "balance" (coin.details "person1"))
+)
+
+;; Claiming is correct
+;; Cases:
+;; 1. canceled and not matured
+;; 2. active and not matured
+;; 3. canceled and has matured
+;; 3. active and has matured
+; Case 1
+(expect-that "Setting status works: Canceled"
+  (= "Pool status updated to: CANCELED")
+  (set-pool-status "pool1" "CANCELED")
+)
+(expect-that "Pool is canceled"
+  (= false)
+  (pool-is-active "pool1")
+)
+(expect-that "Pool hasn't matured"
+  (= false)
+  (pool-has-matured "pool1")
+)
+(expect-that "Can't claim case 1"
+  (= false)
+  (can-claim-from-pool "pool1")
+)
+(expect-that "Claimable tokens are 0.0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+
+; Case 2
+(expect-that "Setting status works: Active"
+  (= "Pool status updated to: ACTIVE")
+  (set-pool-status "pool1" "ACTIVE")
+)
+(expect-that "Pool is active"
+  (= true)
+  (pool-is-active "pool1")
+)
+(expect-that "Pool hasn't matured"
+  (= false)
+  (pool-has-matured "pool1")
+)
+(expect-that "Can't claim case 2"
+  (= false)
+  (can-claim-from-pool "pool1")
+)
+(expect-that "Claimable tokens are 0.0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+
+; Case 3
+(expect-that "Setting status works: Canceled"
+  (= "Pool status updated to: CANCELED")
+  (set-pool-status "pool1" "CANCELED")
+)
+(env-chain-data { "block-time": (time "2000-01-11T00:00:00Z") })
+(expect-that "Pool is canceled"
+  (= false)
+  (pool-is-active "pool1")
+)
+(expect-that "Pool has matured"
+  (= true)
+  (pool-has-matured "pool1")
+)
+(expect-that "Can't claim case 3"
+  (= false)
+  (can-claim-from-pool "pool1")
+)
+(expect-that "Claimable tokens are 0.0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+
+; Case 4
+(expect-that "Setting status works: Active"
+  (= "Pool status updated to: ACTIVE")
+  (set-pool-status "pool1" "ACTIVE")
+)
+(expect-that "Pool is active"
+  (= true)
+  (pool-is-active "pool1")
+)
+(expect-that "Pool has matured"
+  (= true)
+  (pool-has-matured "pool1")
+)
+(expect-that "Can claim case 3"
+  (= true)
+  (can-claim-from-pool "pool1")
+)
+(expect-that "Claimable tokens are 3000.0"
+  (= 3000.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+
+; Setting functions work
+(expect-that "Setting value works"
+  (= "Pool nft value updated to: 500.0")
+  (set-pool-token-value "pool1" 500.0)
+)
+(expect-that "Value updated"
+  (= 500.0)
+  (get-pool-nft-value "pool1")
+)
+(expect-that "Claimable tokens changed 1500.0"
+  (= 1500.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(expect-that "Setting value works"
+  (= "Pool nft value updated to: 1000.0")
+  (set-pool-token-value "pool1" 1000.0)
+)
+(expect-that "Value updated"
+  (= 1000.0)
+  (get-pool-nft-value "pool1")
+)
+(expect-that "Maturity time updated"
+  (= "Pool mature time updated to: \"2000-01-01T00:00:00Z\"")
+  (set-pool-mature-time "pool1" (time "2000-01-01T00:00:00Z"))
+)
+(expect-that "Pool has matured"
+  (= true)
+  (pool-has-matured "pool1")
+)
+(expect-that "Maturity time updated"
+  (= "Pool mature time updated to: \"2000-01-10T00:00:00Z\"")
+  (set-pool-mature-time "pool1" (time "2000-01-10T00:00:00Z"))
+)
+
+(commit-tx)
+
+
+
+;; TX tests claiming from a pool. Tests all possible cases
+(begin-tx "Claiming from pool")
+(use free.marmalade-nft-bonding)
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+
+
+;; Claiming is correct
+;; Cases:
+;; 1. canceled and not matured
+;; 2. active and not matured
+;; 3. canceled and has matured
+;; 3. active and has matured
+; Case 1
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-bonding.OPS)]}])
+(expect-that "Setting status works: Canceled"
+  (= "Pool status updated to: CANCELED")
+  (set-pool-status "pool1" "CANCELED")
+)
+(expect-that "Claimable tokens are 0.0" (= 0.0) (get-claimable-tokens "pool1" "person1"))
+(env-keys ["person1"])
+(env-sigs [{ "key": "person1", "caps": [(free.marmalade-nft-bonding.CLAIM "pool1" "person1")]}])
+(expect-failure "Person1 can't claim case 1"
+  "Can't claim from the pool, make sure it is active, and that it has matured."
+  (claim "pool1" "person1")
+)
+
+; Case 2
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-bonding.OPS)]}])
+(expect-that "Setting status works: Active"
+  (= "Pool status updated to: ACTIVE")
+  (set-pool-status "pool1" "ACTIVE")
+)
+(expect-that "Claimable tokens are 0.0" (= 0.0) (get-claimable-tokens "pool1" "person1"))
+(env-keys ["person1"])
+(env-sigs [{ "key": "person1", "caps": [(free.marmalade-nft-bonding.CLAIM "pool1" "person1")]}])
+(expect-failure "Person1 can't claim case 2"
+  "Can't claim from the pool, make sure it is active, and that it has matured."
+  (claim "pool1" "person1")
+)
+
+; Case 3
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-bonding.OPS)]}])
+(expect-that "Setting status works: Canceled"
+  (= "Pool status updated to: CANCELED")
+  (set-pool-status "pool1" "CANCELED")
+)
+(env-chain-data { "block-time": (time "2000-01-11T00:00:00Z") })
+(expect-that "Claimable tokens are 0.0" (= 0.0) (get-claimable-tokens "pool1" "person1"))
+(env-keys ["person1"])
+(env-sigs [{ "key": "person1", "caps": [(free.marmalade-nft-bonding.CLAIM "pool1" "person1")]}])
+(expect-failure "Person1 can't claim case 3"
+  "Can't claim from the pool, make sure it is active, and that it has matured."
+  (claim "pool1" "person1")
+)
+
+; Case 4
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-bonding.OPS)]}])
+(expect-that "Setting status works: Active"
+  (= "Pool status updated to: ACTIVE")
+  (set-pool-status "pool1" "ACTIVE")
+)
+(expect-that "Claimable tokens are 3000.0"
+  (= 3000.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(env-keys ["person1"])
+(env-sigs [{ "key": "person1", 
+  "caps": [
+    (free.marmalade-nft-bonding.CLAIM "pool1" "person1")
+    (marmalade.ledger.TRANSFER "token" "person1" (get-pool-escrow "pool1") 3.0)]}])
+(expect-that "Person1 can claim case 4"
+  (= "Claimed 3000.0 tokens.")
+  (claim "pool1" "person1")
+)
+(expect-that "No claimable tokens"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(expect-that "Tokens were transferred out"
+  (= 0.0)
+  (at "balance" (marmalade.ledger.details "token" "person1"))
+)
+(expect-that "Tokens were transferred out"
+  (= 3.0)
+  (at "balance" (marmalade.ledger.details "token" (get-pool-escrow "pool1")))
+)
+(commit-tx)
+
+
+
+;; TX tests OPS guard rotations
+(begin-tx "Gov and Ops guard rotation")
+(use free.marmalade-nft-bonding)
+
+(env-keys ["admin"])
+(env-sigs [{ "key": "admin", "caps": [(free.marmalade-nft-bonding.GOV)]}])
+(env-data 
+  { 
+    "gov2": { "keys": ["gov2"], "pred": "="}
+  })
+(expect-that "Rotating gov works"
+  (= "Rotated GOV to a new guard")
+  (rotate-gov (read-keyset "gov2"))
+)
+(expect-failure "Setting value with old keyset doesn't work"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [gov2]"
+  (rotate-gov (read-keyset "gov2"))
+)
+
+(env-keys ["gov2"])
+(env-sigs [{ "key": "gov2", "caps": [(free.marmalade-nft-bonding.GOV)]}])
+(env-data 
+  { 
+    "gov": { "keys": ["admin"], "pred": "="}
+  })
+(expect-that "Rotating gov works"
+  (= "Rotated GOV to a new guard")
+  (rotate-gov (read-keyset "gov"))
+)
+
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-bonding.OPS)]}])
+(env-data 
+  { 
+    "ops2": { "keys": ["ops2"], "pred": "="}
+  })
+(expect-that "Rotating ops works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops (read-keyset "ops2"))
+)
+ 
+; Can perform ops commands with new keyset, can't with the old one
+(expect-failure "Setting value with old keyset doesn't work"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops2]"
+  (set-pool-token-value "pool1" 500.0)
+)
+(env-keys ["ops2"])
+(env-sigs [{ "key": "ops2", "caps": [(free.marmalade-nft-bonding.OPS)]}])
+(expect-that "Setting value works"
+  (= "Pool nft value updated to: 500.0")
+  (set-pool-token-value "pool1" 500.0)
+)
+(expect-that "Setting value works"
+  (= "Pool nft value updated to: 1000.0")
+  (set-pool-token-value "pool1" 1000.0)
+)
+
+(env-data 
+  { 
+    "ops": { "keys": ["ops"], "pred": "="}
+  })
+(expect-that "Rotating ops works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops (read-keyset "ops"))
+)
+
+(commit-tx)
+
+
+
+;; TX tests permissions and smart contract enforces
+(begin-tx "Permissions and enforces")
+(use free.marmalade-nft-bonding)
+
+;; Can't make a pool with negative value
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [(OPS)]
+  }])
+(expect-failure "Can't set negative value"
+  "Value must be greater than 0"
+  (create-bonded-nft 
+    "pool1"
+    "token"
+    coin
+    -1000.0
+    (time "2000-01-10T00:00:00Z"))
+)
+
+;; Can't set value to be negative
+(expect-failure "Can't set negative value"
+  "Value must be greater than 0"
+  (set-pool-token-value "pool1" -100.0)
+)
+
+;; Can't set status to something other than ACTIVE or CANCELED
+(expect-failure "Can't set status to something invalid"
+  "Status must be ACTIVE or CANCELED"
+  (set-pool-status "pool1" "something")
+)
+
+;; Can't create pool without ops
+(env-keys ["person1"])
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [(OPS)]
+  }])
+(expect-failure "Can't create pool without ops"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops]"
+  (create-bonded-nft 
+    "pool1"
+    "token"
+    coin
+    1000.0
+    (time "2000-01-10T00:00:00Z"))
+)
+
+;; Can't withdraw without ops
+(expect-failure "Can't withdraw without ops"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops]"
+  (withdraw-from-bank "pool1" "person1" 1000.0)
+)
+
+;; Can't set anything without ops
+(expect-failure "Can't set status"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops]"
+  (set-pool-status "pool1" "CANCELED")
+)
+(expect-failure "Can't set token value"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops]"
+  (set-pool-token-value "pool1" 100.0)
+)
+(expect-failure "Can't set mature time"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops]"
+  (set-pool-mature-time "pool1" (time "2000-01-01T00:00:00Z"))
+)
+
+;; Can't claim for someone else
+(expect-failure "Can't claim for someone else"
+  "(enforce-guard (at \"guard\" (ma...: Failure: Tx Failed: Keyset failure (=): [person2]"
+  (claim "pool1" "person2")
+)
+
+(env-data 
+  { 
+    "person3-keyset": { "keys": ["person3"], "pred": "="}
+  })
+(expect-failure "Can't call init without gov"
+  "Database exception"
+  (init (read-keyset "person3-keyset") (read-keyset "person3-keyset"))
+)
+(expect-failure "Can't rotate gov without gov"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [admin]"
+  (rotate-gov (read-keyset "person3-keyset"))
+)
+
+(commit-tx)
+
+
+(begin-tx "Test local read functions")
+(use free.marmalade-nft-bonding)
+
+(get-pools)
+(commit-tx)

@@ -26,13 +26,12 @@
 
 (use coin)
 
-(env-keys ["person1", "person2", "person3", "person4", "mint", "burn", "sale", "transfer"])
+(env-keys ["person1", "person2", "person3", "mint", "burn", "sale", "transfer"])
 (env-data 
   { 
     "person1-keyset": { "keys": ["person1"], "pred": "="},
     "person2-keyset": { "keys": ["person2"], "pred": "="},
     "person3-keyset": { "keys": ["person3"], "pred": "="},
-    "person4-keyset": { "keys": ["person4"], "pred": "="},
     "mint-guard": ["mint"],
     "burn-guard": ["burn"],
     "sale-guard": ["sale"],
@@ -44,21 +43,18 @@
     "key": "mint",
     "caps": [
       (marmalade.ledger.MINT "token" "person1" 3.0)
-      (marmalade.ledger.MINT "token" "person2" 3.0)
-      (marmalade.ledger.MINT "token" "person3" 3.0)
-      (marmalade.ledger.MINT "token" "person4" 3.0)
+      (marmalade.ledger.MINT "token" "person2" 6.0)
+      (marmalade.ledger.MINT "token" "person3" 9.0)
     ]
   }])
 
 (fund-account "person1" (read-keyset "person1-keyset") 100000.0)
 (fund-account "person2" (read-keyset "person2-keyset") 100000.0)
 (fund-account "person3" (read-keyset "person3-keyset") 100000.0)
-(fund-account "person4" (read-keyset "person4-keyset") 100000.0)
 
 (marmalade.ledger.create-account "token" "person1" (read-keyset "person1-keyset"))
 (marmalade.ledger.create-account "token" "person2" (read-keyset "person2-keyset"))
 (marmalade.ledger.create-account "token" "person3" (read-keyset "person3-keyset"))
-(marmalade.ledger.create-account "token" "person4" (read-keyset "person4-keyset"))
 
 (let* 
   (
@@ -70,12 +66,10 @@
   (marmalade.ledger.create-token "token" 0 manifest free.token-policy-transfer)
   (install-capability (marmalade.ledger.MINT "token" "person1" 3.0))
   (marmalade.ledger.mint "token" "person1" (read-keyset "person1-keyset") 3.0)
-  (install-capability (marmalade.ledger.MINT "token" "person2" 3.0))
-  (marmalade.ledger.mint "token" "person2" (read-keyset "person2-keyset") 3.0)
-  (install-capability (marmalade.ledger.MINT "token" "person3" 3.0))
-  (marmalade.ledger.mint "token" "person3" (read-keyset "person3-keyset") 3.0)
-  (install-capability (marmalade.ledger.MINT "token" "person4" 3.0))
-  (marmalade.ledger.mint "token" "person4" (read-keyset "person4-keyset") 3.0)
+  (install-capability (marmalade.ledger.MINT "token" "person2" 6.0))
+  (marmalade.ledger.mint "token" "person2" (read-keyset "person2-keyset") 6.0)
+  (install-capability (marmalade.ledger.MINT "token" "person3" 9.0))
+  (marmalade.ledger.mint "token" "person3" (read-keyset "person3-keyset") 9.0)
 )
 
 (commit-tx)

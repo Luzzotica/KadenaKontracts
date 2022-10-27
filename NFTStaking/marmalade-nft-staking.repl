@@ -1,0 +1,31 @@
+(load "dependencies/dependencies.repl")
+
+(begin-tx)
+;  (env-enable-repl-natives true)
+(env-keys ["admin", "ops"])
+(env-data 
+  { 
+    "gov": { "keys": ["admin"], "pred": "="},
+    "ops": { "keys": ["ops"], "pred": "="},
+    "init": true
+  })
+
+(load "marmalade-nft-staking.pact")
+
+(commit-tx)
+
+;; Test unlocked 
+(load "tests/unlocked-pool.repl")
+
+;; Test locked
+(load "tests/locked-pool.repl")
+
+;; Permissions, enforces, etc
+(load "tests/permissions-enforces.repl")
+
+(begin-tx "Test local read functions")
+(use free.marmalade-nft-staking)
+
+(get-pools)
+(get-active-pools)
+(commit-tx)

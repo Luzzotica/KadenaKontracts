@@ -97,7 +97,7 @@
 
     (let ((newbal (- managed requested)))
       (enforce (>= newbal 0.0)
-        (format "TRANSFER exceeded for balance {}" [managed]))
+        (format "TRANSFER exceeded for balance {}, {}" [managed newbal]))
       newbal)
   )
 

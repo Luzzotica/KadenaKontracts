@@ -1,0 +1,462 @@
+(begin-tx "Setup permission tests")
+(env-chain-data { "block-time": (time "1970-01-01T00:00:00Z") })
+
+(use free.marmalade-nft-staking)
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-staking.OPS)]}])
+
+(create-unlocked-nft-pool
+  "perms-unlocked"
+  "token"
+  coin
+  0.1
+  1000.0
+  (time "1970-01-01T00:00:00Z"))
+
+(create-locked-nft-pool
+  "perms-unlockedcked"
+  "token"
+  coin
+  0.1
+  1000.0
+  (time "2000-01-01T00:00:00Z")
+  SECONDS_IN_YEAR
+  50.0)
+
+;; Fund each bank
+(env-keys ["person3"])
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (coin.TRANSFER "person3" (get-pool-bank "perms-unlocked") 50000.0)
+      (coin.TRANSFER "person3" (get-pool-bank "perms-unlockedcked") 50000.0)
+    ]
+  }])
+(coin.transfer "person3" (get-pool-bank "perms-unlocked") 50000.0)
+(coin.transfer "person3" (get-pool-bank "perms-unlockedcked") 50000.0)
+
+(commit-tx)
+
+
+
+;; TX tests OPS guard rotations
+(begin-tx "Rotate gov and ops guard")
+(use free.marmalade-nft-staking)
+
+(env-keys ["admin"])
+(env-sigs [{ "key": "admin", "caps": [(free.marmalade-nft-staking.GOV)]}])
+(env-data 
+  { 
+    "gov2": { "keys": ["gov2"], "pred": "="}
+  })
+(expect-that "Rotating gov works"
+  (= "Rotated GOV to a new guard")
+  (rotate-gov (read-keyset "gov2"))
+)
+(expect-failure "Setting value with old keyset doesn't work"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [gov2]"
+  (rotate-gov (read-keyset "gov2"))
+)
+
+(env-keys ["gov2"])
+(env-sigs [{ "key": "gov2", "caps": [(free.marmalade-nft-staking.GOV)]}])
+(env-data 
+  { 
+    "gov": { "keys": ["admin"], "pred": "="}
+  })
+(expect-that "Rotating gov works"
+  (= "Rotated GOV to a new guard")
+  (rotate-gov (read-keyset "gov"))
+)
+
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-staking.OPS)]}])
+(env-data 
+  { 
+    "ops2": { "keys": ["ops2"], "pred": "="}
+  })
+(expect-that "Rotating ops works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops (read-keyset "ops2"))
+)
+ 
+; Can perform ops commands with new keyset, can't with the old one
+(expect-failure "Setting value with old keyset doesn't work"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops2]"
+  (set-pool-status "perms-unlocked" "INACTIVE")
+)
+(expect-failure "Can't rotate ops anymore"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [ops2]"
+  (rotate-ops (read-keyset "ops2"))
+)
+(env-keys ["ops2"])
+(env-sigs [{ "key": "ops2", "caps": [(free.marmalade-nft-staking.OPS)]}])
+(expect-that "Setting value works"
+  (= "Pool status updated to: INACTIVE")
+  (set-pool-status "perms-unlocked" "INACTIVE")
+)
+(expect-that "Setting value works"
+  (= "Pool status updated to: ACTIVE")
+  (set-pool-status "perms-unlocked" "ACTIVE")
+)
+
+(env-data 
+  { 
+    "ops": { "keys": ["ops"], "pred": "="}
+  })
+(expect-that "Rotating ops works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops (read-keyset "ops"))
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Ops guarded functions")
+(use free.marmalade-nft-staking)
+
+(env-keys ["person3"])
+(env-data { "person3-keyset": { "keys": ["person3"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staking.OPS)
+    ]
+  }])
+
+(expect-failure "Can't create unlocked pool"
+  "Keyset failure (=): [ops]"
+  (create-unlocked-nft-pool
+    "fail"
+    "token"
+    coin
+    0.1
+    1000.0
+    (time "1970-01-01T00:00:00Z"))
+)
+(expect-failure "Can't create locked pool"
+  "Keyset failure (=): [ops]"
+  (create-locked-nft-pool
+    "pool2"
+    "token"
+    coin
+    0.1
+    1000.0
+    (time "2001-01-01T00:00:00Z")
+    SECONDS_IN_YEAR
+    50.0)
+)
+(expect-failure "Can't call internal create pool"
+  "require-capability: not granted: (free.marmalade-nft-staking.OPS)"
+  (create-nft-pool
+    "pool2"
+    "token"
+    coin
+    0.1
+    1000.0
+    (time "2001-01-01T00:00:00Z")
+    true
+    SECONDS_IN_YEAR
+    50.0)
+)
+(expect-failure "Can't set status"
+  "Keyset failure (=): [ops]"
+  (set-pool-status "perms-unlocked" "INACTIVE")
+)
+(expect-failure "Can't withdraw from bank"
+  "Keyset failure (=): [ops]"
+  (withdraw-from-bank "perms-unlocked" "person3" 100.0)
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Status can be set and affects things properly")
+(use free.marmalade-nft-staking)
+(env-keys ["person3"])
+(env-data { "person3-keyset": { "keys": ["person3"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person3" (get-pool-escrow "perms-unlocked") 2.0)
+      (free.marmalade-nft-staking.STAKE "perms-unlocked" "person3" 1.0)
+    ]
+  }])
+(stake "perms-unlocked" "person3" 1.0 (read-keyset "person3-keyset"))
+
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-staking.OPS)]}])
+(expect-that "Setting value works"
+  (= "Pool status updated to: INACTIVE")
+  (set-pool-status "perms-unlocked" "INACTIVE")
+)
+
+(env-keys ["person3"])
+(env-data { "person3-keyset": { "keys": ["person3"], "pred": "="} })
+
+; Can't stake
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person3" (get-pool-escrow "perms-unlocked") 2.0)
+      (free.marmalade-nft-staking.STAKE "perms-unlocked" "person3" 1.0)
+    ]
+  }])
+(expect-failure "Can't stake"
+  "Cannot stake into an inactive pool"
+  (stake "perms-unlocked" "person3" 1.0 (read-keyset "person3-keyset"))
+)
+
+; Can't claim
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staking.CLAIM "perms-unlocked" "person3")
+    ]
+  }])
+(expect-failure "Can't claim"
+  "Can't claim from an inactive pool"
+  (claim "perms-unlocked" "person3")
+)
+
+; Can unstake
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staking.UNSTAKE "perms-unlocked" "person3" 1.0)
+    ]
+  }])
+(expect-that "Can unstake"
+  (= "Write succeeded")
+  (unstake "perms-unlocked" "person3" 1.0)
+)
+
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-staking.OPS)]}])
+(expect-that "Setting value works"
+  (= "Pool status updated to: ACTIVE")
+  (set-pool-status "perms-unlocked" "ACTIVE")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Cannot unstake/claim for someone else")
+(use free.marmalade-nft-staking)
+
+(env-keys ["person3"])
+(env-data 
+  { 
+    "person3-keyset": { "keys": ["person3"], "pred": "="}
+  })
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person3" (get-pool-escrow "perms-unlocked") 1.0)
+      (free.marmalade-nft-staking.STAKE "perms-unlocked" "person3" 1.0)
+    ]
+  }])
+(stake "perms-unlocked" "person3" 1.0 (read-keyset "person3-keyset"))
+
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staking.UNSTAKE "perms-unlocked" "person3" 0.0)
+    ]
+  }])
+(expect-failure "Can't unstake 0.0"
+  "Must unstake more than 0.0"
+  (unstake "perms-unlocked" "person3" 0.0)
+)
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staking.UNSTAKE "perms-unlocked" "person3" -1.0)
+    ]
+  }])
+(expect-failure "Can't unstake negative"
+  "Must unstake more than 0.0"
+  (unstake "perms-unlocked" "person3" -1.0)
+)
+
+;; Person 2 can't unstake for person 3
+(env-keys ["person2"])
+(env-data 
+  { 
+    "person2-keyset": { "keys": ["person2"], "pred": "="}
+  })
+(env-sigs
+  [{
+    "key": "person2",
+    "caps": [
+      (free.marmalade-nft-staking.UNSTAKE "perms-unlocked" "person3" 1.0)
+    ]
+  }])
+(expect-failure "Unstaking for someone else fails"
+  "Keyset failure (=): [person3]"
+  (unstake "perms-unlocked" "person3" 1.0)  
+)
+
+;; Person 2 can't claim for person 3
+(env-sigs
+  [{
+    "key": "person2",
+    "caps": [
+      (free.marmalade-nft-staking.CLAIM "perms-unlocked" "person3")
+    ]
+  }])
+(expect-failure "Claiming for someone else fails"
+  "Keyset failure (=): [person3]"
+  (claim "perms-unlocked" "person3")  
+)
+(commit-tx)
+
+
+
+(begin-tx "Misc permissions")
+(use free.marmalade-nft-staking)
+(env-keys ["person3"])
+(env-data 
+  { 
+    "person3-keyset": { "keys": ["person3"], "pred": "="}
+  })
+(env-sigs
+  [{
+    "key": "person3",
+    "caps": [
+      (free.marmalade-nft-staking.CLAIM "perms-unlocked" "person3")
+    ]
+  }])
+
+(expect-failure "Can't call internal claim"
+  "require-capability: not granted: (free.marmalade-nft-staking.CLAIM \"perms-unlocked\" \"person3\")"
+  (internal-claim
+    "perms-unlocked"
+    "ACTIVE"
+    "person3"
+    (get-pool-bank "perms-unlocked")
+    coin
+    1000.0
+    1.0
+    500.0
+    (time "2020-01-01T00:00:00Z")
+    1000.0
+    (read-keyset "person3-keyset"))
+)
+
+(expect-failure "Can't call init without gov"
+  "Database exception"
+  (init (read-keyset "person3-keyset") (read-keyset "person3-keyset"))
+)
+(expect-failure "Can't rotate gov without gov"
+  "(enforce-guard (at \"guard\" (re...: Failure: Tx Failed: Keyset failure (=): [admin]"
+  (rotate-gov (read-keyset "person3-keyset"))
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Calculate claimable tests")
+(use free.marmalade-nft-staking)
+
+; 1 second == 1 / SECONDS IN YEAR * apy * value return
+; 1 day == 24 * 60 * 60 / SECOND_IN_YEAR * apy * value return
+; 1 year -> Full apy
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+(expect-that "No time has passed -> 0"
+  (= 0.0)
+  (calculate-claimable-tokens 0.1 1000.0 (time "2000-01-01T00:00:00Z") 12)
+)
+(env-chain-data { "block-time": (time "2000-01-01T00:00:01Z") })
+(expect-that "1 second has passed -> 1 / SECONDS_IN_YEAR * apy * value"
+  (= 0.000003170979)
+  (calculate-claimable-tokens 0.1 1000.0 (time "2000-01-01T00:00:00Z") 12)
+)
+(env-chain-data { "block-time": (time "2000-01-02T00:00:00Z") })
+(expect-that "1 day has passed -> 86400 / SECONDS_IN_YEAR * apy * value"
+  (= 0.273972602740)
+  (calculate-claimable-tokens 0.1 1000.0 (time "2000-01-01T00:00:00Z") 12)
+)
+(env-chain-data { "block-time": (time "2000-12-31T00:00:00Z") })
+(expect-that "1 year has passed -> apy * value"
+  (= 100.0)
+  (calculate-claimable-tokens 0.1 1000.0 (time "2000-01-01T00:00:00Z") 12)
+)
+(commit-tx)
+
+(begin-tx "Pool is locked tests")
+(use free.marmalade-nft-staking)
+
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+(expect-that "Before start: not locked"
+  (= false)
+  (pool-is-locked (time "2001-01-01T00:00:00Z") SECONDS_IN_YEAR)
+)
+(env-chain-data { "block-time": (time "2001-01-01T00:00:00Z") })
+(expect-that "Equal to start: locked"
+  (= true)
+  (pool-is-locked (time "2001-01-01T00:00:00Z") SECONDS_IN_YEAR)
+)
+(env-chain-data { "block-time": (time "2001-06-01T00:00:00Z") })
+(expect-that "During lock: locked"
+  (= true)
+  (pool-is-locked (time "2001-01-01T00:00:00Z") SECONDS_IN_YEAR)
+)
+(env-chain-data { "block-time": (add-time (time "2001-01-01T00:00:00Z") SECONDS_IN_YEAR) })
+(expect-that "Equal to end: not locked"
+  (= false)
+  (pool-is-locked (time "2001-01-01T00:00:00Z") SECONDS_IN_YEAR)
+)
+(env-chain-data { "block-time": (time "2003-01-01T00:00:00Z") })
+(expect-that "After end: not locked"
+  (= false)
+  (pool-is-locked (time "2001-01-01T00:00:00Z") SECONDS_IN_YEAR)
+)
+
+(commit-tx)
+
+(begin-tx "Is claimable tests")
+(use free.marmalade-nft-staking)
+
+(env-chain-data { "block-time": (time "1999-01-01T00:00:00Z") })
+(expect-that "Before start, active: not"
+  (= false)
+  (is-claimable (time "2000-01-01T00:00:00Z") "ACTIVE")
+)
+(expect-that "Before start, inactive: not"
+  (= false)
+  (is-claimable (time "2000-01-01T00:00:00Z") "INACTIVE")
+)
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+(expect-that "Equal to start, active: not"
+  (= false)
+  (is-claimable (time "2000-01-01T00:00:00Z") "ACTIVE")
+)
+(expect-that "Equal to start, inactive: not"
+  (= false)
+  (is-claimable (time "2000-01-01T00:00:00Z") "INACTIVE")
+)
+(env-chain-data { "block-time": (time "2001-01-01T00:00:00Z") })
+(expect-that "After start, active: yes"
+  (= true)
+  (is-claimable (time "2000-01-01T00:00:00Z") "ACTIVE")
+)
+(expect-that "After start, inactive: not"
+  (= false)
+  (is-claimable (time "2000-01-01T00:00:00Z") "INACTIVE")
+)
+
+(commit-tx)

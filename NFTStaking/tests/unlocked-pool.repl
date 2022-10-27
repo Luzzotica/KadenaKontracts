@@ -1,0 +1,264 @@
+(begin-tx "Create unlocked pool")
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+
+(use free.marmalade-nft-staking)
+
+;; Can create an unlocked pool and access values
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(free.marmalade-nft-staking.OPS)]}])
+(create-unlocked-nft-pool
+  "pool1"
+  "token"
+  coin
+  0.1
+  1000.0
+  (time "2001-01-01T00:00:00Z"))
+(expect-that "apy is correct"
+  (= 0.1)
+  (get-pool-apy "pool1")
+)
+(expect-that "token correct"
+  (= "token")
+  (get-pool-token-id "pool1")
+)
+(expect-that "bank is correct"
+  (= "u:free.marmalade-nft-staking.require-WITHDRAW:zmA_vS210_Qa1DTtAqPXZKOArnfn1MMVUrg7s8ky_pg")
+  (get-pool-bank "pool1")
+)
+(expect-that "escrow is correct"
+  (= "u:free.marmalade-nft-staking.require-WITHDRAW:zmA_vS210_Qa1DTtAqPXZKOArnfn1MMVUrg7s8ky_pg")
+  (get-pool-escrow "pool1")
+)
+(expect-that "Status is active"
+  (= "ACTIVE")
+  (get-pool-status "pool1")
+)
+(expect-that "pool is unlocked"
+  (= false)
+  (get-pool-is-locked-pool "pool1")
+)
+
+;; Fund the bank using person 1
+(env-keys ["person1"])
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (coin.TRANSFER "person1" (get-pool-bank "pool1") 100000.0)
+    ]
+  }])
+(coin.transfer "person1" (get-pool-bank "pool1") 100000.0)
+(expect-that "100000.0 in the bank"
+  (= 100000.0)
+  (at "balance" (coin.details (get-pool-bank "pool1")))
+)
+
+;; Withdraw from the bank
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [
+      (free.marmalade-nft-staking.OPS)
+    ]
+  }])
+(expect-that "Withdraw 1000 from bank"
+  (= (format "Withdrew 1000.0 coins from {}" [(get-pool-bank "pool1")]))
+  (withdraw-from-bank "pool1" "person1" 1000.0)
+)
+(expect-that "99000 in the bank"
+  (= 99000.0)
+  (at "balance" (coin.details (get-pool-bank "pool1")))
+)
+(expect-that "1000.0 back in person1's bank"
+  (= 1000.0)
+  (at "balance" (coin.details "person1"))
+)
+
+(commit-tx)
+
+
+
+;; Staking
+(begin-tx "Unlocked Pool Stake")
+(use free.marmalade-nft-staking)
+(env-keys ["person1"])
+(env-data { "person1-keyset": { "keys": ["person1"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person1" (get-pool-escrow "pool1") 2.0)
+      (free.marmalade-nft-staking.STAKE "pool1" "person1" 2.0)
+    ]
+  }])
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z") })
+(stake "pool1" "person1" 2.0 (read-keyset "person1-keyset"))
+(expect-that "Remaining balance"
+  (= 1.0)
+  (at "balance" (marmalade.ledger.details "token" "person1"))
+)
+(expect-that "Staked tokens match"
+  (= 2.0)
+  (get-staked-for-pool "pool1" "person1")
+)
+(expect-that "Start time for pool is correct"
+  (= (time "2001-01-01T00:00:00Z"))
+  (get-start-time-for-pool "pool1" "person1")
+)
+
+(env-keys ["person4"])
+(env-data { "person4-keyset": { "keys": ["person4"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person4",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person4" (get-pool-escrow "pool1") 2.0)
+      (free.marmalade-nft-staking.STAKE "pool1" "person4" 2.0)
+    ]
+  }])
+(env-chain-data { "block-time": (time "2002-01-01T00:00:00Z") })
+(stake "pool1" "person4" 2.0 (read-keyset "person4-keyset"))
+(expect-that "Start time for pool is correct"
+  (= (time "2002-01-01T00:00:00Z"))
+  (get-start-time-for-pool "pool1" "person4")
+)
+(commit-tx)
+
+;; Claim
+(begin-tx "Unlocked Pool Claim")
+(use free.marmalade-nft-staking)
+(env-keys ["person1"])
+(env-data { "person1-keyset": { "keys": ["person1"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (free.marmalade-nft-staking.CLAIM "pool1" "person1")
+    ]
+  }])
+
+; Nothing to claim before the start date
+(env-chain-data { "block-time": (time "2000-12-31T00:00:00Z") })
+(expect-that "Nothing to claim before the start date"
+  (= "Nothing claimed")
+  (claim "pool1" "person1")
+)
+(expect-that "Claimable tokens is 0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+
+(env-chain-data { "block-time": (time "2002-01-01T00:00:00Z") })
+(expect-that "Claim transfers funds and reset claimable"
+  (= "Claimed 200.00 tokens.")
+  (claim "pool1" "person1")
+)
+(expect-that "Claimable tokens is 0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(expect-that "Claimed is in person1's bank"
+  (= 1200.0)
+  (at "balance" (coin.details "person1"))
+)
+(commit-tx)
+
+;; Staking more
+(begin-tx "Unlocked Pool Stake more")
+(use free.marmalade-nft-staking)
+(env-keys ["person1"])
+(env-data { "person1-keyset": { "keys": ["person1"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person1" (get-pool-escrow "pool1") 1.0)
+      (free.marmalade-nft-staking.STAKE "pool1" "person1" 1.0)
+    ]
+  }])
+(env-chain-data { "block-time": (time "2003-01-01T00:00:00Z") })
+(expect-that "Claimable tokens is 200"
+  (= 200.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(stake "pool1" "person1" 1.0 (read-keyset "person1-keyset"))
+(expect-that "Remaining balance"
+  (= 0.0)
+  (at "balance" (marmalade.ledger.details "token" "person1"))
+)
+(expect-that "Staked tokens match"
+  (= 3.0)
+  (get-staked-for-pool "pool1" "person1")
+)
+(expect-that "Claimable tokens is 0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(expect-that "Claimed is in person1's bank"
+  (= 1400.0)
+  (at "balance" (coin.details "person1"))
+)
+(commit-tx)
+
+;; Unstaking
+(begin-tx "Unlocked Pool Unstake")
+(use free.marmalade-nft-staking)
+(env-keys ["person1"])
+(env-data { "person1-keyset": { "keys": ["person1"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (free.marmalade-nft-staking.UNSTAKE "pool1" "person1" 1.0)
+    ]
+  }])
+(env-chain-data { "block-time": (time "2004-01-01T00:00:00Z") })
+(unstake "pool1" "person1" 1.0)
+(expect-that "Remaining balance"
+  (= 1.0)
+  (at "balance" (marmalade.ledger.details "token" "person1"))
+)
+(expect-that "Staked tokens match"
+  (= 2.0)
+  (get-staked-for-pool "pool1" "person1")
+)
+(expect-that "Claimable tokens is 0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(expect-that "Claimed is in person1's bank"
+  (= 1700.0)
+  (at "balance" (coin.details "person1"))
+)
+(commit-tx)
+(begin-tx "Unlocked Pool Unstake again, no time change")
+(use free.marmalade-nft-staking)
+(env-keys ["person1"])
+(env-data { "person1-keyset": { "keys": ["person1"], "pred": "="} })
+(env-sigs
+  [{
+    "key": "person1",
+    "caps": [
+      (free.marmalade-nft-staking.UNSTAKE "pool1" "person1" 1.0)
+    ]
+  }])
+(env-chain-data { "block-time": (time "2002-12-31T00:00:00Z") })
+(unstake "pool1" "person1" 1.0)
+(expect-that "Remaining balance"
+  (= 2.0)
+  (at "balance" (marmalade.ledger.details "token" "person1"))
+)
+(expect-that "Staked tokens match"
+  (= 1.0)
+  (get-staked-for-pool "pool1" "person1")
+)
+(expect-that "Claimable tokens is 0"
+  (= 0.0)
+  (get-claimable-tokens "pool1" "person1")
+)
+(expect-that "Claimed is in person1's bank"
+  (= 1700.0)
+  (at "balance" (coin.details "person1"))
+)
+(commit-tx)

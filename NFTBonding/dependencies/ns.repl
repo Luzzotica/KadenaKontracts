@@ -1,0 +1,16 @@
+(begin-tx)
+(module guards2 GOV
+    (defcap GOV () true)
+    (defconst GUARD_SUCCESS (create-user-guard (success)))
+    (defconst GUARD_FAILURE (create-user-guard (failure)))
+    (defun success () true)
+    (defun failure () (enforce false "Disabled"))
+
+)
+
+(define-namespace 'util guards2.GUARD_SUCCESS guards2.GUARD_SUCCESS)
+(define-namespace 'free guards2.GUARD_SUCCESS guards2.GUARD_SUCCESS)
+(define-namespace 'kip guards2.GUARD_SUCCESS guards2.GUARD_SUCCESS)
+(define-namespace 'user guards2.GUARD_SUCCESS guards2.GUARD_SUCCESS)
+(define-namespace 'marmalade guards2.GUARD_SUCCESS guards2.GUARD_SUCCESS)
+(commit-tx)
