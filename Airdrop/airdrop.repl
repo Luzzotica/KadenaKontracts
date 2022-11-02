@@ -1,0 +1,275 @@
+(load "kda-env/init.repl")
+
+(begin-tx "Setup contract")
+
+(env-keys ["gov", "ops"])
+(env-data 
+  { 
+    "gov": { "keys": ["gov"], "pred": "="},
+    "init": true
+  })
+
+(load "airdrop.pact")
+
+(commit-tx)
+
+(begin-tx "Managed account creation")
+(use free.airdrop)
+
+; Create managed account
+; Airdrop with it
+(env-keys ["alice-key"])
+(env-data 
+  { 
+    "alice": { "keys": ["alice-key"], "pred": "="}
+  })
+(expect-that "Creates a managed account"
+  (= "Write succeeded")
+  (create-managed-account "swag" (read-keyset "alice") "alice")
+)
+(expect-that "Creates a managed account from k account"
+  (= "Write succeeded")
+  (create-managed-account-from-k "from-k" "alice")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Can't airdrop if you haven't made an account with that coin")
+(use free.airdrop)
+
+(env-keys ["alice-key"])
+(env-sigs
+  [{
+    "key": "alice-key",
+    "caps": [
+      (MANAGED "swag")
+      (coin.TRANSFER "alice" "swag" 40.0)
+      (marmalade.ledger.TRANSFER "m-token" "alice" "swag" 2.0)
+    ]
+  }])
+(expect-failure "Can't airdrop coin without account"
+  "row not found: swag"
+  (airdrop-coin "alice" "swag" coin 10.0 ["bob" "carol"])
+)
+(expect-failure "Can't split coin without account"
+  "row not found: swag"
+  (split-coin "alice" "swag" coin 20.0 ["bob" "carol"])
+)
+(expect-failure "Can't airdrop nft without account"
+  "row not found: m-token:swag"
+  (airdrop-nft "alice" "swag" marmalade.ledger "m-token" 1.0 ["bob" "carol"])
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Basic Airdrop")
+(use free.airdrop)
+
+(env-keys ["alice-key"])
+(env-sigs
+  [{
+    "key": "alice-key",
+    "caps": [
+      (MANAGED "swag")
+    ]
+  }])
+(expect-that "Add coin to managed account"
+  (= "Write succeeded")
+  (add-coin-to-managed-account "swag" coin)
+)
+
+(env-keys ["alice-key"])
+(env-sigs
+  [{
+    "key": "alice-key",
+    "caps": [
+      (MANAGED "swag")
+      (coin.TRANSFER "alice" "swag" 20.0)
+    ]
+  }])
+(expect-that "Bob balance before"
+  (= 1000.0)
+  (coin.get-balance "bob")
+)
+(expect-that "Carol balance before"
+  (= 1000.0)
+  (coin.get-balance "carol")
+)
+(expect-that "Can airdrop"
+  (= ["Airdropped to bob successfully" "Airdropped to carol successfully"])
+  (airdrop-coin "alice" "swag" coin 10.0 ["bob" "carol"])
+)
+(expect-that "Bob balance after"
+  (= 1010.0)
+  (coin.get-balance "bob")
+)
+(expect-that "Carol balance after"
+  (= 1010.0)
+  (coin.get-balance "carol")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Split coin")
+(use free.airdrop)
+
+(env-keys ["alice-key"])
+(env-sigs
+  [{
+    "key": "alice-key",
+    "caps": [
+      (MANAGED "swag")
+      (coin.TRANSFER "alice" "swag" 20.0)
+    ]
+  }])
+(expect-that "Bob balance before"
+  (= 1010.0)
+  (coin.get-balance "bob")
+)
+(expect-that "Carol balance before"
+  (= 1010.0)
+  (coin.get-balance "carol")
+)
+(expect-that "Can airdrop"
+  (= ["Airdropped to bob successfully" "Airdropped to carol successfully"])
+  (split-coin "alice" "swag" coin 20.0 ["bob" "carol"])
+)
+(expect-that "Bob balance after"
+  (= 1020.0)
+  (coin.get-balance "bob")
+)
+(expect-that "Carol balance after"
+  (= 1020.0)
+  (coin.get-balance "carol")
+)
+
+(commit-tx)
+
+
+(begin-tx "NFT Airdrop")
+(use free.airdrop)
+
+(env-keys ["alice-key"])
+(env-sigs
+  [{
+    "key": "alice-key",
+    "caps": [
+      (MANAGED "swag")
+      (marmalade.ledger.TRANSFER "m-token" "alice" "swag" 2.0)
+    ]
+  }])
+
+(expect-that "Add nft to managed account"
+  (= true)
+  (add-nft-to-managed-account "swag" marmalade.ledger "m-token")
+)
+
+(expect-that "Bob balance before"
+  (= 100.0)
+  (marmalade.ledger.get-balance "m-token" "bob")
+)
+(expect-that "Carol balance before"
+  (= 100.0)
+  (marmalade.ledger.get-balance "m-token" "carol")
+)
+(expect-that "Can airdrop"
+  (= ["Airdropped to bob successfully" "Airdropped to carol successfully"])
+  (airdrop-nft "alice" "swag" marmalade.ledger "m-token" 1.0 ["bob" "carol"])
+)
+(expect-that "Bob balance after"
+  (= 101.0)
+  (marmalade.ledger.get-balance "m-token" "bob")
+)
+(expect-that "Carol balance after"
+  (= 101.0)
+  (marmalade.ledger.get-balance "m-token" "carol")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Can't airdrop if you haven't made an account")
+(use free.airdrop)
+
+(env-keys ["alice-key"])
+(env-sigs
+  [{
+    "key": "alice-key",
+    "caps": [
+      (MANAGED "swag2")
+      (coin.TRANSFER "alice" "swag2" 40.0)
+      (marmalade.ledger.TRANSFER "m-token" "alice" "swag2" 2.0)
+    ]
+  }])
+(expect-failure "Can't airdrop coin without account"
+  "row not found: swag2"
+  (airdrop-coin "alice" "swag2" coin 10.0 ["bob" "carol"])
+)
+(expect-failure "Can't split coin without account"
+  "row not found: swag2"
+  (split-coin "alice" "swag2" coin 20.0 ["bob" "carol"])
+)
+(expect-failure "Can't airdrop nft without account"
+  "row not found: swag2"
+  (airdrop-nft "alice" "swag2" marmalade.ledger "m-token" 1.0 ["bob" "carol"])
+)
+
+(commit-tx)
+
+
+
+
+(begin-tx "Can't create another account under same name")
+(use free.airdrop)
+
+(env-keys ["bob-key"])
+(env-data 
+  { 
+    "bob": { "keys": ["bob-key"], "pred": "="}
+  })
+(expect-failure "Can't overwrite a managed coin account"
+  "row found for key swag"
+  (create-managed-account "swag" (read-keyset "bob") "bob")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Managed guard enforced")
+(use free.airdrop)
+
+(env-keys ["bob-key"])
+(env-sigs
+  [{
+    "key": "bob-key",
+    "caps": [
+      (MANAGED "swag")
+      (coin.TRANSFER "bob" "swag" 2.0)
+    ]
+  }])
+(expect-failure "Can't airdrop from another account"
+  "Keyset failure (=): [alice-ke"
+  (airdrop-coin "bob" "swag" coin 10.0 ["alice" "carol"])
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Test getters")
+(use free.airdrop)
+
+(expect-that "Can get all accounts for k-account"
+  (= [{"account": "from-k"} {"account": "swag"}])
+  (get-managed-accounts-for-k-account "alice")
+)
+
+(commit-tx)

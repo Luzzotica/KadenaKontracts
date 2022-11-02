@@ -1,0 +1,132 @@
+(begin-tx "Test setting APY")
+(use free.marmalade-nft-staking)
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [
+      (free.marmalade-nft-staking.OPS)
+    ]
+  }])
+
+(env-chain-data { "block-time": (time "1970-01-01T00:00:00Z") })
+(create-unlocked-nft-pool
+  "apy-swap"
+  "token"
+  coin
+  0.1
+  1000.0
+  (time "2000-01-01T00:00:00Z"))
+
+
+(expect-that "Can change APY before start"
+  (= "APY Updated")
+  (set-pool-apy "apy-swap" 0.2)
+)
+(expect-that "APY did change"
+  (= 0.2)
+  (get-pool-apy "apy-swap")
+)
+
+(expect-failure "Can't do zero APY"
+  "APY must be greater than 0"
+  (set-pool-apy "apy-swap" 0.0)
+)
+(expect-failure "Can't do negative APY"
+  "APY must be greater than 0"
+  (set-pool-apy "apy-swap" -0.1)
+)
+
+(env-chain-data { "block-time": (time "2001-01-01T00:00:00Z") })
+(expect-failure "Can't change APY after start"
+  "Cannot change the APY if the pool has already started"
+  (set-pool-apy "apy-swap" 0.3)
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Test setting Bonus")
+(use free.marmalade-nft-staking)
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [
+      (free.marmalade-nft-staking.OPS)
+    ]
+  }])
+
+(env-chain-data { "block-time": (time "1970-01-01T00:00:00Z") })
+(create-locked-nft-pool
+  "bonus-swap"
+  "token"
+  coin
+  0.1
+  1000.0
+  (time "2000-01-01T00:00:00Z")
+  SECONDS_IN_YEAR
+  50.0)
+
+;; Stake NFTs
+(env-keys ["person2", "person3"])
+(env-data { 
+  "person2-keyset": { "keys": ["person2"], "pred": "="},
+  "person3-keyset": { "keys": ["person3"], "pred": "="} 
+})
+(env-sigs
+  [{
+    "key": "person2",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person2" (get-pool-escrow "bonus-swap") 1.0)
+      (free.marmalade-nft-staking.STAKE "pool2" "person2" 1.0)
+    ]
+  },
+  {
+    "key": "person3",
+    "caps": [
+      (marmalade.ledger.TRANSFER "token" "person3" (get-pool-escrow "bonus-swap") 2.0)
+      (free.marmalade-nft-staking.STAKE "pool2" "person3" 2.0)
+    ]
+  }])
+(stake "bonus-swap" "person2" 1.0 (read-keyset "person2-keyset"))
+(stake "bonus-swap" "person3" 2.0 (read-keyset "person3-keyset"))
+
+(env-keys ["ops"])
+(env-sigs
+  [{
+    "key": "ops",
+    "caps": [
+      (free.marmalade-nft-staking.OPS)
+    ]
+  }])
+(expect-that "Can change bonus before start"
+  (= "Bonus Updated")
+  (set-pool-bonus "bonus-swap" 100.0)
+)
+(expect-that "Bonus was updated"
+  (= 100.0)
+  (get-pool-lock-bonus "bonus-swap")
+)
+(expect-that "Bonus for staked nfts was updated: Person2"
+  (= 100.0)
+  (get-bonus-for-pool-account "bonus-swap" "person2")
+)
+(expect-that "Bonus for staked nfts was updated: Person3"
+  (= 200.0)
+  (get-bonus-for-pool-account "bonus-swap" "person3")
+)
+
+(expect-failure "Can't do negative bonus"
+  "Bonus must be greater than or equal to 0"
+  (set-pool-bonus "bonus-swap" -100.0)
+)
+
+(env-chain-data { "block-time": (time "2001-01-01T00:00:00Z") })
+(expect-failure "Can't change bonus after start"
+  "Cannot change the bonus if the pool has already started"
+  (set-pool-bonus "bonus-swap" 500.0)
+)
+
+(commit-tx)

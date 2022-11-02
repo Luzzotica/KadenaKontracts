@@ -83,3 +83,4 @@
 (load "marmalade-nft-bonding.repl")
 (load "marmalade-nft-bonding.repl")
 (load "marmalade-nft-bonding.repl")
+(load "marmalade-nft-bonding.repl")

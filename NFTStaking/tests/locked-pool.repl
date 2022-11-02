@@ -114,7 +114,11 @@
 )
 (expect-that "Staked tokens match"
   (= 2.0)
-  (get-staked-for-pool "pool2" "person2")
+  (get-staked-nfts-for-pool-account "pool2" "person2")
+)
+(expect-that "Bonus for person2 is correct"
+  (= 100.0)
+  (get-bonus-for-pool-account "pool2" "person2")
 )
 (commit-tx)
 
@@ -166,7 +170,11 @@
 )
 (expect-that "Staked tokens match"
   (= 1.0)
-  (get-staked-for-pool "pool2" "person2")
+  (get-staked-nfts-for-pool-account "pool2" "person2")
+)
+(expect-that "Bonus for person2 is correct"
+  (= 50.0)
+  (get-bonus-for-pool-account "pool2" "person2")
 )
 (expect-that "Claimable tokens is 0"
   (= 0.0)
@@ -302,7 +310,7 @@
 (env-chain-data { "block-time": (time "2002-01-01T00:00:00Z") })
 (expect-that "Staked tokens match"
   (= 1.0)
-  (get-staked-for-pool "pool2" "person2")
+  (get-staked-nfts-for-pool-account "pool2" "person2")
 )
 (unstake "pool2" "person2" 1.0)
 (expect-that "Remaining balance"
@@ -311,7 +319,7 @@
 )
 (expect-that "Staked tokens match"
   (= 0.0)
-  (get-staked-for-pool "pool2" "person2")
+  (get-staked-nfts-for-pool-account "pool2" "person2")
 )
 (commit-tx)
 

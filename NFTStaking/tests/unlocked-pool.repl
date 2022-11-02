@@ -100,7 +100,7 @@
 )
 (expect-that "Staked tokens match"
   (= 2.0)
-  (get-staked-for-pool "pool1" "person1")
+  (get-staked-nfts-for-pool-account "pool1" "person1")
 )
 (expect-that "Start time for pool is correct"
   (= (time "2001-01-01T00:00:00Z"))
@@ -189,7 +189,7 @@
 )
 (expect-that "Staked tokens match"
   (= 3.0)
-  (get-staked-for-pool "pool1" "person1")
+  (get-staked-nfts-for-pool-account "pool1" "person1")
 )
 (expect-that "Claimable tokens is 0"
   (= 0.0)
@@ -221,7 +221,7 @@
 )
 (expect-that "Staked tokens match"
   (= 2.0)
-  (get-staked-for-pool "pool1" "person1")
+  (get-staked-nfts-for-pool-account "pool1" "person1")
 )
 (expect-that "Claimable tokens is 0"
   (= 0.0)
@@ -251,7 +251,7 @@
 )
 (expect-that "Staked tokens match"
   (= 1.0)
-  (get-staked-for-pool "pool1" "person1")
+  (get-staked-nfts-for-pool-account "pool1" "person1")
 )
 (expect-that "Claimable tokens is 0"
   (= 0.0)
