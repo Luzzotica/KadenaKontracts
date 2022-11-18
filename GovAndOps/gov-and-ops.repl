@@ -1,0 +1,109 @@
+(load "../kda-env/init.repl")
+
+(begin-tx "Setup contract")
+
+(env-keys ["gov", "ops"])
+(env-data 
+  { 
+    "gov": { "keys": ["gov"], "pred": "="},
+    "ops": { "keys": ["ops"], "pred": "="},
+    "init": true
+  })
+
+(load "gov-and-ops.pact")
+
+(commit-tx)
+
+
+(begin-tx "Init can only be called once")
+(use free.gov-and-ops)
+
+(env-data 
+  { 
+    "gov": { "keys": ["gov"], "pred": "="},
+    "ops": { "keys": ["ops"], "pred": "="},
+    "init": true
+  })
+(expect-failure "Init fails on second call"
+  "Insert: row found for key gov"
+  (init-perms (read-keyset "gov") (read-keyset "ops"))
+)
+
+(commit-tx)
+
+
+(begin-tx "Gov and Ops")
+(use free.gov-and-ops)
+
+(env-keys ["gov"])
+(env-sigs [{ "key": "gov", "caps": [(GOV)]}])
+(env-data 
+  { 
+    "gov2": { "keys": ["gov2"], "pred": "="},
+    "ops2": { "keys": ["ops2"], "pred": "="}
+  })
+(expect-that "Rotating ops with gov works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops-from-gov (read-keyset "ops2"))
+)
+(expect-that "Rotating gov works"
+  (= "Rotated GOV to a new guard")
+  (rotate-gov (read-keyset "gov2"))
+)
+(expect-failure "Rotating gov with old keyset doesn't work"
+  "Tx Failed: Keyset failure (=): [gov2]"
+  (rotate-gov (read-keyset "gov2"))
+)
+(expect-failure "Rotating ops with old keyset doesn't work"
+  "Tx Failed: Keyset failure (=): [gov2]"
+  (rotate-ops-from-gov (read-keyset "ops2"))
+)
+
+(env-keys ["gov2"])
+(env-sigs [{ "key": "gov2", "caps": [(GOV)]}])
+(env-data 
+  { 
+    "gov": { "keys": ["gov"], "pred": "="},
+    "ops": { "keys": ["ops"], "pred": "="}
+  })
+(expect-that "Rotating ops with gov works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops-from-gov (read-keyset "ops"))
+)
+(expect-that "Rotating gov works"
+  (= "Rotated GOV to a new guard")
+  (rotate-gov (read-keyset "gov"))
+)
+
+(env-keys ["ops"])
+(env-sigs [{ "key": "ops", "caps": [(OPS)]}])
+(env-data 
+  { 
+    "ops2": { "keys": ["ops2"], "pred": "="}
+  })
+(expect-that "Rotating ops works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops (read-keyset "ops2"))
+)
+(expect-failure "Setting value with old keyset doesn't work"
+  "Tx Failed: Keyset failure (=): [ops2]"
+  (rotate-ops (read-keyset "ops2"))
+)
+
+(env-keys ["ops2"])
+(env-sigs [{ "key": "ops2", "caps": [(OPS)]}])
+(env-data 
+  { 
+    "ops": { "keys": ["ops"], "pred": "="}
+  })
+(expect-that "Rotating ops works"
+  (= "Rotated OPS to a new guard")
+  (rotate-ops (read-keyset "ops"))
+)
+
+(expect-failure "Can't call rotate ops internal directly"
+  "require-capability: not granted"
+  (rotate-ops-internal (read-keyset "ops"))
+)
+
+(commit-tx)
