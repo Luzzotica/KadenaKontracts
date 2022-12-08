@@ -32,6 +32,144 @@
 (commit-tx)
 
 
+
+(begin-tx "Test Counter Value")
+(use free.gov-and-ops)
+
+(env-keys ["ops"])
+(env-sigs [
+  {
+    "key": "ops",
+    "caps": [
+      (OPS)
+    ]
+  }
+])
+(expect-that "Can init counter"
+  (= "Write succeeded")
+  (init-counter "id")
+)
+(expect-that "Can get counter"
+  (= 0)
+  (get-counter "id")
+)
+(expect-failure "Can't increment at all"
+  "require-capability: not granted:"
+  (increment-counter "id")
+)
+
+(env-keys ["alice-key"])
+(env-sigs [
+  {
+    "key": "alice-key",
+    "caps": [
+      (OPS)
+    ]
+  }
+])
+(expect-failure "Can't modify value without ops"
+  "Tx Failed: Keyset failure (=): [ops]"
+  (init-counter "id")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Test Decimal Value")
+(use free.gov-and-ops)
+
+(env-keys ["ops"])
+(env-sigs [
+  {
+    "key": "ops",
+    "caps": [
+      (OPS)
+    ]
+  }
+])
+(expect-that "Can update decimal value"
+  (= "Write succeeded")
+  (update-decimal-value "id" 1.0)
+)
+(expect-that "Decimal updated"
+  (= 1.0)
+  (get-decimal-value "id")
+)
+(expect-that "Can update decimal value"
+  (= "Write succeeded")
+  (update-decimal-value "id" 2.0)
+)
+(expect-that "Decimal updated"
+  (= 2.0)
+  (get-decimal-value "id")
+)
+
+(env-keys ["alice-key"])
+(env-sigs [
+  {
+    "key": "alice-key",
+    "caps": [
+      (OPS)
+    ]
+  }
+])
+(expect-failure "Can't modify value without ops"
+  "Tx Failed: Keyset failure (=): [ops]"
+  (update-decimal-value "id" 0.0)
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Test String Value")
+(use free.gov-and-ops)
+
+(env-keys ["ops"])
+(env-sigs [
+  {
+    "key": "ops",
+    "caps": [
+      (OPS)
+    ]
+  }
+])
+(expect-that "Can update string value"
+  (= "Write succeeded")
+  (update-string-value "id" "test")
+)
+(expect-that "String updated"
+  (= "test")
+  (get-string-value "id")
+)
+(expect-that "Can update string value"
+  (= "Write succeeded")
+  (update-string-value "id" "test2")
+)
+(expect-that "String updated"
+  (= "test2")
+  (get-string-value "id")
+)
+
+(env-keys ["alice-key"])
+(env-sigs [
+  {
+    "key": "alice-key",
+    "caps": [
+      (OPS)
+    ]
+  }
+])
+(expect-failure "Can't modify value without ops"
+  "Tx Failed: Keyset failure (=): [ops]"
+  (update-string-value "id" "test")
+)
+
+(commit-tx)
+
+
+
 (begin-tx "Gov and Ops")
 (use free.gov-and-ops)
 
@@ -104,6 +242,20 @@
 (expect-failure "Can't call rotate ops internal directly"
   "require-capability: not granted"
   (rotate-ops-internal (read-keyset "ops"))
+)
+
+(env-data 
+  { 
+    "gov": { "keys": ["gov"], "pred": "="},
+    "ops": { "keys": ["ops"], "pred": "="}
+  })
+(expect-that "Can get gov guard"
+  (= (read-keyset "gov"))
+  (get-gov-guard)
+)
+(expect-that "Can get ops guard"
+  (= (read-keyset "ops"))
+  (get-ops-guard)
 )
 
 (commit-tx)

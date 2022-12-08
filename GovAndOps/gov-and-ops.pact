@@ -68,6 +68,16 @@
     "Rotated OPS to a new guard"
   )
 
+  (defun get-gov-guard:guard ()
+    @doc "Gets the current gov guard and returns it"
+    (at "guard" (read m-guards GOV_GUARD))
+  )
+
+  (defun get-ops-guard:guard ()
+    @doc "Gets the current ops guard and returns it"
+    (at "guard" (read m-guards OPS_GUARD))
+  )
+
   (defun init-perms:string (gov:guard ops:guard)
     @doc "Initializes the guards and creates the tables for the module"
 
@@ -81,56 +91,6 @@
     (insert m-guards OPS_GUARD
       { "guard": ops }  
     )
-  )
-
-  ;; -------------------------------
-  ;; Decimal Values
-
-  (defschema decimal-value
-    @doc "Stores decimal values"
-    value:decimal
-  )
-  (deftable decimal-values:{value})
-
-  (defun update-decimal-value (val-id:string value:decimal)
-    @doc "Updates the account for the bank"
-
-    (with-capability (OPS)
-      (write decimal-values val-id
-        { "value": value }
-      )
-    )
-  )
-
-  (defun get-decimal-value:decimal (val-id:string)
-    @doc "Gets the value with the provided id"
-
-    (at "value" (read values val-id ["value"]))
-  )
-
-  ;; -------------------------------
-  ;; String Values
-
-  (defschema value
-    @doc "Stores string values"
-    value:string
-  )
-  (deftable values:{value})
-
-  (defun update-string-value (val-id:string value:string)
-    @doc "Updates the account for the bank"
-
-    (with-capability (OPS)
-      (write values val-id
-        { "value": value }
-      )
-    )
-  )
-
-  (defun get-string-value:string (val-id:string)
-    @doc "Gets the value with the provided id"
-
-    (at "value" (read values val-id ["value"]))
   )
 
   ;; -------------------------------
@@ -173,16 +133,70 @@
 
   (defun init-counter:string (counter-id:string)
     @doc "Initializes the guards and creates the tables for the module"
-
-    (insert counters counter-id
-      { "counter": 0 }  
+    (with-capability (OPS)
+      (insert counters counter-id
+        { "counter": 0 }  
+      )
     )
+  )
+
+  ;; -------------------------------
+  ;; Decimal Values
+
+  (defschema decimal-value
+    @doc "Stores decimal values"
+    value:decimal
+  )
+  (deftable decimal-values:{decimal-value})
+
+  (defun update-decimal-value (val-id:string value:decimal)
+    @doc "Updates the account for the bank"
+
+    (with-capability (OPS)
+      (write decimal-values val-id
+        { "value": value }
+      )
+    )
+  )
+
+  (defun get-decimal-value:decimal (val-id:string)
+    @doc "Gets the value with the provided id"
+
+    (at "value" (read decimal-values val-id ["value"]))
+  )
+
+  ;; -------------------------------
+  ;; String Values
+
+  (defschema value
+    @doc "Stores string values"
+    value:string
+  )
+  (deftable values:{value})
+
+  (defun update-string-value (val-id:string value:string)
+    @doc "Updates the account for the bank"
+
+    (with-capability (OPS)
+      (write values val-id
+        { "value": value }
+      )
+    )
+  )
+
+  (defun get-string-value:string (val-id:string)
+    @doc "Gets the value with the provided id"
+
+    (at "value" (read values val-id ["value"]))
   )
 )
 
 (if (read-msg "init")
   [
     (create-table m-guards)
+    (create-table counters)
+    (create-table decimal-values)
+    (create-table values)
     (init-perms (read-keyset "gov") (read-keyset "ops"))
   ]
   "Contract upgraded")
