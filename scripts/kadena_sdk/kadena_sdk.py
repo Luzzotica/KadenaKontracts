@@ -19,19 +19,20 @@ class KadenaSdk():
     self.chain_id = chain_id
 
 
-  def build_command(self, sender, payload, signers, gas=1.0e-5):
+  def build_command(self, sender, payload, signers, gas_limit=10000, gas_price=1.0e-5):
     # Create Time Stamp
     t_epoch = time.time()
     t_epoch = round(t_epoch) - 15
+    print(t_epoch)
 
     command = {
       "networkId": self.network_id,
       "payload": payload,
       "signers": signers,
       "meta": {
-        "gasLimit": 100000,
+        "gasLimit": gas_limit,
         "chainId": self.chain_id,
-        "gasPrice": gas,
+        "gasPrice": gas_price,
         "sender": sender,
         "ttl": 28000,
         "creationTime": t_epoch
@@ -42,15 +43,17 @@ class KadenaSdk():
     return command
 
 
-  def send(self, command):
+  def send(self, command, include_signer=True):
     cmd_json = json.dumps(command)
     hash_code, sig = self.sign(cmd_json)
+
+    sigs = [{'sig': sig}] if include_signer else []
     
     cmds = {
       'cmds': [
         {
           'hash': hash_code,
-          'sigs': [{'sig': sig}],
+          'sigs': sigs,
           'cmd': cmd_json,
         }
       ]
@@ -59,13 +62,15 @@ class KadenaSdk():
     return requests.post(self.build_url(self.SEND), json=cmds)
   
   
-  def local(self, command):
+  def local(self, command, include_signer=True):
     cmd_json = json.dumps(command)
     hash_code, sig = self.sign(cmd_json)
+
+    sigs = [{'sig': sig}] if include_signer else []
     
     cmd = {
       'hash': hash_code,
-      'sigs': [{'sig': sig}],
+      'sigs': sigs,
       'cmd': cmd_json,
     }
 

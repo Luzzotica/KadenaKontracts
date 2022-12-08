@@ -41,7 +41,36 @@ with open(CONTRACT_PATH, 'r') as f:
 payload = {
   "exec": {
     "data": {
-      # "nft-staker-admin": { "keys": [key_pair.get_pub_key()], "pred": "keys-all"},
+      "gov": { "keys": ["aeecd476ad8a4842ec84f3fbdad39b73fe7329fb4feaa3ea4367314a29a7e42b"], "pred": "="},
+      "ops": { "keys": ["aeecd476ad8a4842ec84f3fbdad39b73fe7329fb4feaa3ea4367314a29a7e42b"], "pred": "="},
+      "tier-data": [
+        {
+          "rarity": "Pink",
+          "min-hash-rate": 1,
+          "cost-per-th-usd": 680.0
+        },
+        {
+          "rarity": "Blue",
+          "min-hash-rate": 5,
+          "cost-per-th-usd": 650.0
+        },
+        {
+          "rarity": "Gold",
+          "min-hash-rate": 10,
+          "cost-per-th-usd": 599.0
+        },
+        {
+          "rarity": "Spectrum",
+          "min-hash-rate": 20,
+          "cost-per-th-usd": 550.0
+        },
+        {
+          "rarity": "Spectrum",
+          "min-hash-rate": 40,
+          "cost-per-th-usd": 530.0
+        }
+      ],
+      "bank-account": "k:aeecd476ad8a4842ec84f3fbdad39b73fe7329fb4feaa3ea4367314a29a7e42b",
       "init": init
     },
     "code": contract_content,
@@ -56,8 +85,8 @@ signers = [
 
 print()
 cmd = sdk.build_command(f'k:{key_pair.get_pub_key()}', payload, signers)
-# result = sdk.local(cmd)
-result = sdk.send_and_listen(cmd)
+result = sdk.local(cmd)
+# result = sdk.send_and_listen(cmd)
 print(result.text)
 
 print()

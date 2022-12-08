@@ -1,9 +1,9 @@
-
 from kadena_sdk.kadena_sdk import KadenaSdk
 from kadena_sdk.key_pair import KeyPair
+import time
 
 # Code to run
-PACT_CODE = '(free.kor-oracle.create-price-)'
+PACT_CODE = '"Clog"'
 
 MAINNET = {
   'base_url': 'https://api.chainweb.com',
@@ -26,34 +26,22 @@ sdk = KadenaSdk(key_pair,
 payload = {
   "exec": {
     "data": {
-      "nft-staker-admin": { "keys": [key_pair.get_pub_key()], "pred": "keys-all"}
     },
     "code": PACT_CODE,
   }
 }
 signers = [
   {
-    "pubKey": key_pair.get_pub_key(),
-    "clist": [
-      # {
-      #   "name": f"{CONTRACT_NAME}.GOV",
-      #   "args": []
-      # },
-      # {
-      #   "name": "coin.GAS",
-      #   "args": []
-      # }
-    ],
+    "pubKey": key_pair.get_pub_key()
   }
 ]
 
-print()
-print('wswag')
-cmd = sdk.build_command(f'k:{key_pair.get_pub_key()}', payload, signers)
-result = sdk.local(cmd)
-print(result.text)
+def job():
+  cmd = sdk.build_command(f'k:{key_pair.get_pub_key()}', 
+    payload, signers, gas_limit=150000, gas_price=1e-4)
+  result = sdk.send(cmd)
+  print(result.text)
 
-# result = sdk.send_and_listen(cmd)
-# print(result.text)
-
-print()
+while True:
+  job()
+  time.sleep(20)

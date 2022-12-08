@@ -68,5 +68,5 @@ signers = [
 
 cmd = sdk.build_command(f"k:{key_pair.get_pub_key()}", payload, signers)
 # result = sdk.local(cmd)
-result = sdk.send_and_listen(cmd)
-print(result.text)
+# result = sdk.send_and_listen(cmd)
+# print(result.text)
