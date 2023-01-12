@@ -3,7 +3,7 @@ from kadena_sdk.kadena_sdk import KadenaSdk
 from kadena_sdk.key_pair import KeyPair
 
 # Code to run
-PACT_CODE = '(free.kor-oracle.create-price-)'
+PACT_CODE = '"hello"'
 
 MAINNET = {
   'base_url': 'https://api.chainweb.com',
