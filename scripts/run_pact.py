@@ -18,41 +18,27 @@ TESTNET = {
 NETWORK = TESTNET
 
 key_pair = KeyPair('keys.json')
-sdk = KadenaSdk(key_pair, 
-  NETWORK['base_url'], 
-  NETWORK['network_id'], 
-  NETWORK['chain_id'])
+sdk = KadenaSdk(key_pair=key_pair)
 
 payload = {
   "exec": {
-    "data": {
-      "nft-staker-admin": { "keys": [key_pair.get_pub_key()], "pred": "keys-all"}
-    },
+    "data": {},
     "code": PACT_CODE,
   }
 }
-signers = [
-  {
-    "pubKey": key_pair.get_pub_key(),
-    "clist": [
-      # {
-      #   "name": f"{CONTRACT_NAME}.GOV",
-      #   "args": []
-      # },
-      # {
-      #   "name": "coin.GAS",
-      #   "args": []
-      # }
-    ],
-  }
-]
 
 print()
 print('wswag')
-cmd = sdk.build_command(f'k:{key_pair.get_pub_key()}', payload, signers)
+cmd = sdk.build_command(payload, chain_ids=['0'])
 result = sdk.local(cmd)
-print(result.text)
+print(result)
+print(result['0'].text)
 
+print()
+print(cmd)
+result_send = sdk.send(cmd)
+print()
+print(result_send['0'].text)
 # result = sdk.send_and_listen(cmd)
 # print(result.text)
 

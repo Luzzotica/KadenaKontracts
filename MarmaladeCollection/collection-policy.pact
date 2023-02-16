@@ -163,7 +163,7 @@
       amount:decimal
     )
     (enforce-ledger)
-    (enforce-guard (free.tiki-perms.get-ops-guard))
+    (enforce-guard (free.nft-perms.get-ops-guard))
   )
 
   (defun enforce-burn:bool

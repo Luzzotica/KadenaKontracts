@@ -354,6 +354,7 @@
 
   (defun mint-token:string (collection:string tier-id:string account:string token-id:integer)
     @doc "Mints a single token for the account."
+    (require-capability (MINT))
     (insert minted-tokens (get-mind-token-id collection tier-id account token-id)
       { "collection": collection
       , "tier-id": tier-id
@@ -364,15 +365,13 @@
     )
   )
 
-  
-
   (defun reveal-token:string 
     (
       m-token:object{minted-token}
       t-data:object{token-data}
     )
     @doc "Requires OPS. Reveals the token for the given account."
-    (require-capability (OPS)
+    (with-capability (OPS)
       (let
         (
           (collection (at "collection" m-token))

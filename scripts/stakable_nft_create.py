@@ -70,3 +70,20 @@ cmd = sdk.build_command(f"k:{key_pair.get_pub_key()}", payload, signers)
 # result = sdk.local(cmd)
 # result = sdk.send_and_listen(cmd)
 # print(result.text)
+
+# Get the hash of the token
+  test = sdk.run_pact('''
+    (let*
+      (
+        (uri (kip.token-manifest.uri (read-msg "scheme") (read-msg "data")))
+        (datum-complete (kip.token-manifest.create-datum uri (read-msg "datum")))
+        (manifest (kip.token-manifest.create-manifest uri [datum-complete]))
+      )
+      (at "hash" manifest)
+    )
+    ''',
+    env_data={
+      'scheme': 'https',
+      'data': url,
+      'datum': datum,
+    },)
