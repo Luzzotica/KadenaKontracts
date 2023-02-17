@@ -17,7 +17,6 @@ POLICY_CONTRACT = os.environ['POLICY_CONTRACT']
 COLLECTION = os.environ['COLLECTION']
 
 def get_secret():
-
     # Create a Secrets Manager client
     session = boto3.session.Session()
     client = session.client(

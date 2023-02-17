@@ -1,0 +1,1 @@
+export { ReactComponent as CollectionShape } from './CollectionShape.svg';

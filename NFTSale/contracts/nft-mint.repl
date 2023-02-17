@@ -1,0 +1,742 @@
+(load "nft-env.repl")
+
+(begin-tx "Governance")
+(use free.nft-mint)
+
+(env-keys ["test"])
+(expect-failure "Can't acquire gov with test"
+  "Tx Failed: Keyset failure (keys-any): [gov]"
+  (test-capability (GOV))
+)
+(expect-failure "Can't acquire ops with test"
+  "Tx Failed: Keyset failure (keys-any): [ops]"
+  (test-capability (OPS))
+)
+
+(env-keys ["gov"])
+(expect-that "Can acquire gov with gov"
+  (= "Capability acquired")
+  (test-capability (GOV))
+)
+
+(env-keys ["ops"])
+(expect-that "Can acquire ops with ops"
+  (= "Capability acquired")
+  (test-capability (OPS))
+)
+
+(commit-tx)
+
+
+(begin-tx "Check the collection, update a collection, test getting tiers")
+(use free.nft-mint)
+
+(expect-that "Total supply is correct"
+  (= 15)
+  (get-total-supply-for-collection "test-collection")
+)
+(expect-that "Total supply is correct"
+  (= 1)
+  (get-current-index-for-collection "test-collection")
+)
+(expect-that "uri is correct"
+  (= "https://example.com")
+  (get-collection-uri "test-collection")
+)
+(expect-that "Can update URI is correct"
+  (= "Write succeeded")
+  (update-collection-uri "test-collection" "swag")
+)
+(expect-that "uri is correct"
+  (= "swag")
+  (get-collection-uri "test-collection")
+)
+
+(let
+  (
+    (times
+      [
+        (time "2000-01-01T00:00:00Z")
+        (time "2000-01-01T23:59:59Z")
+        (time "2000-01-02T00:00:00Z")
+        (time "2000-01-02T23:59:59Z")
+        (time "2000-01-03T00:00:00Z")
+      ]
+    )
+    (expected-tier-ids
+      [
+        "free"
+        "free"
+        "discount"
+        "discount"
+        "public"
+      ]
+    )
+    (combine
+      (lambda (time tier)
+        { "time": time, "expected-tier-id": tier }
+      )  
+    )
+    (check-tier
+      (lambda (check-data:object)
+        (let
+          (
+            (t (at "time" check-data))
+            (expected-tier-id (at "expected-tier-id" check-data))
+          )
+          ;; Set the block time
+          (env-chain-data { "block-time": t })
+
+          (with-applied-env
+            ;; Get the tier and validate it
+            (expect-that "Tier id is correct"
+              (= expected-tier-id)
+              (at "tier-id" (get-current-tier-for-collection "test-collection"))
+            )
+          )
+        )
+      )  
+    )
+  )  
+  (map (check-tier) (zip (combine) times expected-tier-ids))
+)
+
+;; Test update the tiers
+(expect-that "Update tiers"
+  (= "Write succeeded")
+  (update-collection-tiers
+    "test-collection"
+    [
+      {
+        "tier-id": "free2",
+        "tier-type": "WL",
+        "start-time": (time "2000-01-01T00:00:00Z"),
+        "end-time": (time "2000-01-02T00:00:00Z"),
+        "cost": 0.0,
+        "limit": 1.0
+      },
+      {
+        "tier-id": "discount2",
+        "tier-type": "WL",
+        "start-time": (time "2000-01-02T00:00:00Z"),
+        "end-time": (time "2000-01-03T00:00:00Z"),
+        "cost": 0.0,
+        "limit": 1.0
+      },
+      {
+        "tier-id": "public2",
+        "tier-type": "WL",
+        "start-time": (time "2000-01-03T00:00:00Z"),
+        "end-time": (time "2000-01-04T00:00:00Z"),
+        "cost": 0.0,
+        "limit": 1.0
+      }
+    ]
+  )
+)
+
+(let
+  (
+    (times
+      [
+        (time "2000-01-01T00:00:00Z")
+        (time "2000-01-01T23:59:59Z")
+        (time "2000-01-02T00:00:00Z")
+        (time "2000-01-02T23:59:59Z")
+        (time "2000-01-03T00:00:00Z")
+      ]
+    )
+    (expected-tier-ids
+      [
+        "free2"
+        "free2"
+        "discount2"
+        "discount2"
+        "public2"
+      ]
+    )
+    (combine
+      (lambda (time tier)
+        { "time": time, "expected-tier-id": tier }
+      )  
+    )
+    (check-tier
+      (lambda (check-data:object)
+        (let
+          (
+            (t (at "time" check-data))
+            (expected-tier-id (at "expected-tier-id" check-data))
+          )
+          ;; Set the block time
+          (env-chain-data { "block-time": t })
+
+          (with-applied-env
+            ;; Get the tier and validate it
+            (expect-that "Tier id is correct"
+              (= expected-tier-id)
+              (at "tier-id" (get-current-tier-for-collection "test-collection"))
+            )
+          )
+        )
+      )  
+    )
+  )  
+  (map (check-tier) (zip (combine) times expected-tier-ids))
+)
+
+;; Test update the tiers
+(expect-that "Update tiers"
+  (= "Write succeeded")
+  (update-collection-tiers
+    "test-collection"
+    [
+      {
+        "tier-id": "free",
+        "tier-type": "WL",
+        "start-time": (time "2000-01-01T00:00:00Z"),
+        "end-time": (time "2000-01-02T00:00:00Z"),
+        "cost": 0.0,
+        "limit": 1.0
+      },
+      {
+        "tier-id": "discount",
+        "tier-type": "WL",
+        "start-time": (time "2000-01-02T00:00:00Z"),
+        "end-time": (time "2000-01-03T00:00:00Z"),
+        "cost": 10.0,
+        "limit": 5.0
+      },
+      {
+        "tier-id": "public",
+        "tier-type": "PUBLIC",
+        "start-time": (time "2000-01-03T00:00:00Z"),
+        "end-time": (time "2000-01-03T00:00:00Z"),
+        "cost": 50.0,
+        "limit": -1.0
+      }
+    ]
+  )
+)
+
+(commit-tx)
+
+
+(begin-tx "Validate tiers tests")
+(use free.nft-mint)
+
+(let
+  (
+    (tiers
+      [
+        [{
+          "tier-id": "free",
+          "tier-type": "BREAK",
+          "start-time": (time "2000-01-01T00:00:00Z"),
+          "end-time": (time "2000-01-02T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        }],
+        [{
+          "tier-id": "free",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-01T00:00:00Z"),
+          "end-time": (time "1999-01-02T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        }],
+        [{
+          "tier-id": "free",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-01T00:00:00Z"),
+          "end-time": (time "2000-01-03T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        },
+        {
+          "tier-id": "free2",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-02T00:00:00Z"),
+          "end-time": (time "2000-01-04T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        }],
+        [{
+          "tier-id": "free",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-02T00:00:00Z"),
+          "end-time": (time "2000-01-04T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        },
+        {
+          "tier-id": "free2",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-01T00:00:00Z"),
+          "end-time": (time "2000-01-03T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        }],
+        [{
+          "tier-id": "free",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-02T00:00:00Z"),
+          "end-time": (time "2000-01-04T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        },
+        {
+          "tier-id": "free2",
+          "tier-type": "WL",
+          "start-time": (time "2000-01-03T00:00:00Z"),
+          "end-time": (time "2000-01-03T00:00:00Z"),
+          "cost": 0.0,
+          "limit": 1.0
+        }]
+      ]
+    )
+    (expected-failures
+      [
+        "Invalid tier type"
+        "Start must be before end"
+        "Tiers overlap"
+        "Tiers overlap"
+        "Tiers overlap"
+      ]
+    )
+    (combine
+      (lambda (tiers failure)
+        { "tiers": tiers, "expected-failure": failure }
+      )  
+    )
+    (check-tier
+      (lambda (check-data:object)
+        (let
+          (
+            (tiers (at "tiers" check-data))
+            (expected-failure (at "expected-failure" check-data))
+          )
+
+          (expect-failure "Tier id is correct"
+            expected-failure
+            (validate-tiers tiers)
+          )
+        )
+      )  
+    )
+  )  
+  (map (check-tier) (zip (combine) tiers expected-failures))
+)
+
+(commit-tx)
+
+
+(begin-tx "Whitelist: add, is whitelisted, update count")
+(use free.nft-mint)
+
+(let
+  (
+    (expected-is-whitelisted
+      [
+        {"tier-id": "free", "account": "bob", "whitelisted": true, "mint-count": 0},
+        {"tier-id": "free", "account": "dave", "whitelisted": false, "mint-count": -1}
+        {"tier-id": "discount", "account": "bob", "whitelisted": true, "mint-count": 0},
+        {"tier-id": "discount", "account": "alice", "whitelisted": true, "mint-count": 0},
+        {"tier-id": "discount", "account": "dave", "whitelisted": false, "mint-count": -1}
+        {"tier-id": "public", "account": "carol", "whitelisted": false, "mint-count": -1},
+        {"tier-id": "public", "account": "dave", "whitelisted": false, "mint-count": -1},
+        {"tier-id": "public", "account": "dave", "whitelisted": false, "mint-count": -1},
+        {"tier-id": "public", "account": "dave", "whitelisted": false, "mint-count": -1}
+      ]
+    )
+    (check-whitelisted
+      (lambda (whitelist-info:object)
+        (bind whitelist-info
+          { "tier-id":= tier-id
+          , "account":= account
+          , "whitelisted":= whitelisted
+          , "mint-count":= mint-count
+          }
+          (expect-that "whitelist is correct"
+            (= whitelisted)
+            (is-whitelisted "test-collection" tier-id account)
+          )
+          (expect-that "mint count is correct"
+            (= mint-count)
+            (get-whitelist-mint-count "test-collection" tier-id account)
+          )
+        )
+      )  
+    )
+  )  
+  (map (check-whitelisted) expected-is-whitelisted)
+)
+
+(test-capability (WHITELIST_UPDATE))
+(expect-that "Can update count"
+  (= ["Write succeeded" "Write succeeded" "Write succeeded"])
+  [
+    (update-whitelist-mint-count "test-collection" "free" "bob" 1)
+    (update-whitelist-mint-count "test-collection" "discount" "bob" 1)
+    (update-whitelist-mint-count "test-collection" "discount" "alice" 2)
+  ]
+)
+
+(let
+  (
+    (expected-is-whitelisted
+      [
+        {"tier-id": "free", "account": "bob", "whitelisted": true, "mint-count": 1},
+        {"tier-id": "discount", "account": "bob", "whitelisted": true, "mint-count": 1},
+        {"tier-id": "discount", "account": "alice", "whitelisted": true, "mint-count": 2}
+      ]
+    )
+    (check-whitelisted
+      (lambda (whitelist-info:object)
+        (bind whitelist-info
+          { "tier-id":= tier-id
+          , "account":= account
+          , "whitelisted":= whitelisted
+          , "mint-count":= mint-count
+          }
+          (expect-that "whitelist is correct"
+            (= whitelisted)
+            (is-whitelisted "test-collection" tier-id account)
+          )
+          (expect-that "mint count is correct"
+            (= mint-count)
+            (get-whitelist-mint-count "test-collection" tier-id account)
+          )
+        )
+      )  
+    )
+  )  
+  (map (check-whitelisted) expected-is-whitelisted)
+)
+
+(expect-that "Can update count"
+  (= ["Write succeeded" "Write succeeded" "Write succeeded"])
+  [
+    (update-whitelist-mint-count "test-collection" "free" "bob" 0)
+    (update-whitelist-mint-count "test-collection" "discount" "bob" 0)
+    (update-whitelist-mint-count "test-collection" "discount" "alice" 0)
+  ]
+)
+
+(commit-tx)
+
+
+(begin-tx "Mint, mint event free")
+(use free.nft-mint)
+
+;; Clear the events up to this point
+(env-events true)
+
+;; Free tier
+(env-chain-data { "block-time": (time "2000-01-01T00:00:00Z")})
+(expect-that "Minting succeeds"
+  (= true)
+  (mint "test-collection" "bob" 1)
+)
+(expect-that "Events emitted" 
+  (= ["test-collection" "free" "bob" 1])
+  (at "params" (at 0 (env-events true)))
+)
+(expect-that "Current index was incremented"
+  (= 2)
+  (get-current-index-for-collection "test-collection")
+)
+(expect-failure "Can't mint if not whitelisted"
+  "Account is not whitelisted"
+  (mint "test-collection" "dave" 1)
+)
+(expect-failure "Can't mint beyond limit"
+  "Mint limit reached"
+  (mint "test-collection" "bob" 1)
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Mint, mint event discount")
+(use free.nft-mint)
+
+(env-keys ["alice-key" "bob-key"])
+(env-sigs [
+  {
+    "key": "alice-key", 
+    "caps": [
+      (coin.GAS)
+      (coin.TRANSFER "alice" (get-bank-for-collection "test-collection") 30.0)
+    ]
+  },
+  {
+    "key": "bob-key", 
+    "caps": [
+      (coin.GAS)
+      (coin.TRANSFER "bob" (get-bank-for-collection "test-collection") 20.0)
+    ]
+  }
+])
+(env-chain-data { "block-time": (time "2000-01-02T00:00:00Z")})
+(expect-that "Minting succeeds"
+  (= true)
+  (mint "test-collection" "bob" 1)
+)
+(expect-that "Events emitted" 
+  (= ["test-collection" "discount" "bob" 1])
+  (at "params" (at 1 (env-events true)))
+)
+(expect-that "Current index was incremented"
+  (= 3)
+  (get-current-index-for-collection "test-collection")
+)
+(expect-failure "Can't mint if not whitelisted"
+  "Account is not whitelisted"
+  (mint "test-collection" "dave" 1)
+)
+(expect-failure "Can't mint beyond limit"
+  "Mint limit reached"
+  (mint "test-collection" "bob" 5)
+)
+
+(expect-that "Batch minting succeeds"
+  (= true)
+  (mint "test-collection" "alice" 3)
+)
+(expect-that "Bank now has money"
+  (= 40.0)
+  (coin.get-balance (get-bank-for-collection "test-collection"))
+)
+(expect-that "Bob and alice spent money"
+  (= [970.0 990.0])
+  [
+    (coin.get-balance "alice")
+    (coin.get-balance "bob")
+  ]
+)
+(expect-that "Current index was incremented"
+  (= 6)
+  (get-current-index-for-collection "test-collection")
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Mint, mint event public")
+(use free.nft-mint)
+
+(env-keys ["alice-key" "bob-key" "dave-key"])
+(env-sigs [
+  {
+    "key": "alice-key", 
+    "caps": [
+      (coin.GAS)
+      (coin.TRANSFER "alice" (get-bank-for-collection "test-collection") 50.0)
+    ]
+  },
+  {
+    "key": "bob-key", 
+    "caps": [
+      (coin.GAS)
+      (coin.TRANSFER "bob" (get-bank-for-collection "test-collection") 100.0)
+    ]
+  },
+  {
+    "key": "dave-key", 
+    "caps": [
+      (coin.GAS)
+      (coin.TRANSFER "dave" (get-bank-for-collection "test-collection") 350.0)
+    ]
+  }
+])
+(env-chain-data { "block-time": (time "2000-01-03T00:00:00Z")})
+(expect-that "Tier is now public"
+  (= "PUBLIC")
+  (at "tier-type" (get-current-tier-for-collection "test-collection"))
+)
+(expect-that "Minting succeeds"
+  (= true)
+  (mint "test-collection" "alice" 1)
+)
+(expect-that "Minting succeeds"
+  (= true)
+  (mint "test-collection" "bob" 2)
+)
+(expect-that "Minting succeeds"
+  (= true)
+  (mint "test-collection" "dave" 3)
+)
+(expect-that "Current index was incremented"
+  (= 12)
+  (get-current-index-for-collection "test-collection")
+)
+(expect-failure "Can't mint more than total supply"
+  "Can't mint more than total supply"
+  (mint "test-collection" "dave" 5)
+)
+(expect-that "Minting succeeds"
+  (= true)
+  (mint "test-collection" "dave" 4)
+)
+(expect-that "Current index was incremented"
+  (= 16)
+  (get-current-index-for-collection "test-collection")
+)
+(expect-that "Bank now has money"
+  (= 540.0)
+  (coin.get-balance (get-bank-for-collection "test-collection"))
+)
+(expect-that "People spent money"
+  (= [920.0 890.0 650.0])
+  [
+    (coin.get-balance "alice")
+    (coin.get-balance "bob")
+    (coin.get-balance "dave")
+  ]
+)
+
+(commit-tx)
+
+
+
+(begin-tx "Reveal token")
+(use free.nft-mint)
+
+(env-keys ["ops"])
+(env-sigs [
+  {
+    "key": "ops",
+    "caps": [
+      (OPS)
+      (marmalade.ledger.MINT "t:EYzhXCEI8mVGhrTnrE48QKJYBgh6DGfgpiGmTRT-nH4" "bob" 1.0)
+    ]
+  }
+])
+(expect-that "Correct unrevealed token cout"
+  (= 15)
+  (length (get-unrevealed-tokens-for-collection "test-collection"))
+)
+(expect-that "Correct token cout"
+  (= 15)
+  (length (get-tokens-for-collection "test-collection"))
+)
+(expect-that "Reveal token succeeds"
+  (= "t:EYzhXCEI8mVGhrTnrE48QKJYBgh6DGfgpiGmTRT-nH4")
+  (reveal-token 
+    (at 0 (get-unrevealed-tokens-for-collection "test-collection"))
+    {
+      "scheme": "https",
+      "data": "abc",
+      "datum": {
+        "name": "t",
+        "description": "t"
+      }
+    }
+    0
+    free.nft-policy
+  )
+)
+(expect-that "Correct unrevealed token cout"
+  (= 14)
+  (length (get-unrevealed-tokens-for-collection "test-collection"))
+)
+(expect-that "revealed token has correct data"
+  (= ["EYzhXCEI8mVGhrTnrE48QKJYBgh6DGfgpiGmTRT-nH4" true])
+  [
+    (at "hash" (at 0 (get-owned "bob")))
+    (at "revealed" (at 0 (get-owned "bob")))
+  ]
+)
+(expect-that "Token exists"
+  (= "bob")
+  (at "account" 
+    (marmalade.ledger.details "t:EYzhXCEI8mVGhrTnrE48QKJYBgh6DGfgpiGmTRT-nH4" "bob")
+  )
+)
+
+(commit-tx)
+
+
+(begin-tx "Ops guarded and private functions")
+(use free.nft-mint)
+
+(env-keys ["test"])
+(env-data {
+  "ks": { "keys": ["gov"], "pred": "keys-all" }
+})
+(expect-failure "Create collection"
+  "Tx Failed: Keyset failure (keys-any): [ops]"  
+  (create-collection {} coin (read-keyset 'ks ))
+)
+(expect-failure "update collection tiers"
+  "Tx Failed: Keyset failure (keys-any): [ops]"  
+  (update-collection-tiers "" [])
+)
+(expect-failure "update collection uri"
+  "Tx Failed: Keyset failure (keys-any): [ops]"  
+  (update-collection-uri "" "")
+)
+(expect-failure "add whitelist to collection"
+  "Tx Failed: Keyset failure (keys-any): [ops]"  
+  (add-whitelist-to-collection "" [])
+)
+(expect-failure "add to whitelist"
+  "Tx Failed: require-capability: not granted"  
+  (add-to-whitelist "" "" "")
+)
+(expect-failure "update whitelist mint count"
+  "Tx Failed: require-capability: not granted"  
+  (update-whitelist-mint-count "" "" "" 1)
+)
+(expect-failure "admin mint"
+  "Tx Failed: Keyset failure (keys-any): [ops]"  
+  (admin-mint "" "" (read-keyset "ks") 1)
+)
+(expect-failure "mint internal"
+  "Tx Failed: require-capability: not granted"  
+  (mint-internal "" "" (read-keyset "ks") 1 "" 1)
+)
+(expect-failure "mint token"
+  "Tx Failed: require-capability: not granted"  
+  (mint-token "" "" (read-keyset "ks") 1)
+)
+
+(expect-failure "reveal token"
+  "Tx Failed: Keyset failure (keys-any): [ops]"  
+  (reveal-token 
+    (at 0 (get-unrevealed-tokens-for-collection "test-collection"))
+    {
+      "scheme": "https",
+      "data": "abc",
+      "datum": {
+        "name": "t",
+        "description": "t"
+      }
+    }
+    0
+    free.nft-policy
+  )
+)
+
+(expect-failure "create marmalade token"
+  "Tx Failed: require-capability: not granted"  
+  (create-marmalade-token 
+    "" 
+    (read-keyset "ks") 
+    ""
+    {
+      "precision": 0,
+      "scheme": "https",
+      "data": "abc",
+      "datum": {
+        "name": "t",
+        "description": "t"
+      },
+      "policy": free.nft-policy
+    }
+  )
+)
+
+(commit-tx)

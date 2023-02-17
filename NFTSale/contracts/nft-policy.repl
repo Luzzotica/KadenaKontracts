@@ -1,0 +1,28 @@
+(load "nft-env.repl")
+
+(begin-tx "Governance")
+(use free.nft-policy)
+
+(env-keys ["test"])
+(expect-failure "Can't acquire gov with test"
+  "Tx Failed: Keyset failure (keys-any): [gov]"
+  (test-capability (GOV))
+)
+(expect-failure "Can't acquire ops with test"
+  "Tx Failed: Keyset failure (keys-any): [ops]"
+  (test-capability (OPS))
+)
+
+(env-keys ["gov"])
+(expect-that "Can acquire gov with gov"
+  (= "Capability acquired")
+  (test-capability (GOV))
+)
+
+(env-keys ["ops"])
+(expect-that "Can acquire ops with ops"
+  (= "Capability acquired")
+  (test-capability (OPS))
+)
+
+(commit-tx)

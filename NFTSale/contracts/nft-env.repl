@@ -1,0 +1,82 @@
+(load "kda-env/init.repl")
+
+(begin-tx "Load in the nft environment")
+
+(env-keys ["gov" "ops"])
+(env-data
+  {
+    "gov": {
+      "keys": [
+        "gov"
+      ],
+      "pred": "keys-any"
+    },
+    "ops": {
+      "keys": [
+        "ops"
+      ],
+      "pred": "keys-any"
+    },
+    "bank-guard": {
+      "keys": [
+        "gov"
+      ],
+      "pred": "keys-all"
+    },
+    "collection": {
+      "name": "test-collection",
+      "total-supply": 15.0,
+      "provenance": "abc",
+      "root-uri": "https://example.com",
+      "tiers": [
+        {
+          "tier-id": "free",
+          "tier-type": "WL",
+          "start-time": {"time": "2000-01-01T00:00:00Z"},
+          "end-time": {"time": "2000-01-02T00:00:00Z"},
+          "cost": 0.0,
+          "limit": 1.0
+        },
+        {
+          "tier-id": "discount",
+          "tier-type": "WL",
+          "start-time": {"time": "2000-01-02T00:00:00Z"},
+          "end-time": {"time": "2000-01-03T00:00:00Z"},
+          "cost": 10.0,
+          "limit": 5.0
+        },
+        {
+          "tier-id": "public",
+          "tier-type": "PUBLIC",
+          "start-time": {"time": "2000-01-03T00:00:00Z"},
+          "end-time": {"time": "2000-01-03T00:00:00Z"},
+          "cost": 50.0,
+          "limit": -1.0
+        }
+      ]
+    },
+    "collection-name": "test-collection",
+    "tier-data": [
+      {
+        "tier-id": "free",
+        "accounts": ["bob"]
+      },
+      {
+        "tier-id": "discount",
+        "accounts": ["bob", "alice"]
+      }
+    ],
+    "can-offer": true,
+    "can-buy": true,
+    "can-transfer": true,
+    "can-burn": true,
+    "can-xchain": true,
+    "upgrade": false
+  }
+)
+
+(load "nft-perms.pact")
+(load "nft-policy.pact")
+(load "nft-mint.pact")
+
+(commit-tx)
